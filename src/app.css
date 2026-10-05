@@ -70,3 +70,84 @@ html, body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Mobile layer (phone-width viewports, ≤ 760px — matches ui.isNarrow).
+   The root layout swaps in the `.app.mobile` shell (top bar + bottom
+   tab bar); this layer adapts the shared surfaces inside every section.
+
+   `.app.mobile` prefixes beat component-scoped specificity for the
+   structural swaps; plain selectors carry the rest. !important is used
+   deliberately where a scoped component rule would otherwise win.
+   ───────────────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  /* Compact panel headers everywhere. */
+  .panel-head {
+    padding: 12px var(--space-3) !important;
+    min-height: 48px !important;
+  }
+  .panel-head h1 { font-size: var(--text-h3) !important; }
+
+  /* Dashboard: tighter gutters, single-column stats already auto-fit. */
+  .dash { padding: var(--space-3) !important; }
+
+  /* Segmented filters scroll instead of wrapping tall. */
+  .seg {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg .seg-btn { flex: none; }
+
+  /* Modals: fit the viewport, scroll inside, thumb-reachable. */
+  .modal-wrap { padding: 10px !important; }
+  .modal {
+    max-height: calc(100dvh - 24px) !important;
+    overflow-y: auto;
+    padding: var(--space-4) !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal.wide { max-width: 100% !important; }
+}
+
+/* Structural swaps that must out-specify scoped component rules — these
+   only exist inside the mobile shell, so no media query is needed. */
+.app.mobile .tw { flex-direction: column; }
+.app.mobile .tw > .list-pane {
+  width: auto !important;
+  flex: none;
+}
+.app.mobile .tw > .list-pane .tlist { max-height: 36vh; }
+.app.mobile .tw-resize { display: none !important; }
+.app.mobile .tw > .detail-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-left: none !important;
+  border-top: 1px solid var(--color-border);
+}
+.app.mobile .ws-resize { display: none !important; }
+
+/* Settings modal → single column: nav becomes a horizontal chip rail. */
+.app.mobile .settings {
+  grid-template-columns: 1fr !important;
+  height: 92dvh !important;
+  max-height: none !important;
+}
+.app.mobile .settings .nav {
+  flex-direction: row !important;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-right: none !important;
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-2) !important;
+  gap: var(--space-1) !important;
+  -webkit-overflow-scrolling: touch;
+}
+.app.mobile .settings .nav-title,
+.app.mobile .settings .nav-foot { display: none !important; }
+.app.mobile .settings .nav-item { flex: none; }
+.app.mobile .settings .pane { padding: var(--space-4) var(--space-3) !important; }
+

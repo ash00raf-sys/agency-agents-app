@@ -99,6 +99,24 @@ npm run tauri dev
 
 For a signed release build on macOS, see [docs/BUILD.md](./docs/BUILD.md).
 
+## Run It In A Browser (Android/Termux, any desktop)
+
+The full app also runs as a self-hosted **web app** — built for smartphones
+(Termux on Android) but works anywhere Node runs. A zero-dependency server
+(`web/server.mjs`) implements the app's backend command surface over HTTP,
+and the same UI runs in your phone's browser with a responsive mobile shell
+(bottom tab bar, full-screen agent detail, in-app folder picker). Agent
+installs land in the real home directories (`~/.claude/agents/`, …), so it
+pairs perfectly with Claude Code / Codex / Gemini CLI running in Termux.
+
+```sh
+npm install
+npm run build
+node web/server.mjs        # → http://localhost:8787
+```
+
+Full walkthrough: **[docs/TERMUX.md](./docs/TERMUX.md)**.
+
 ## Build From Source
 
 Prerequisites:

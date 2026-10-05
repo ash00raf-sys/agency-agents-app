@@ -738,4 +738,28 @@
       background: rgba(0,0,0,0.28); border: 0; cursor: default;
     }
   }
+
+  /* ── Phone shell (≤ 760px, the mobile top bar replaces the 36px titlebar):
+     the detail pane becomes a full-screen page with a back button, and the
+     filter/lens rows scroll horizontally instead of wrapping tall. ── */
+  @media (max-width: 760px) {
+    .detail-pane {
+      top: 52px;
+      width: 100vw !important;
+      border-left: none;
+    }
+    .ws.sel .ws-scrim { inset: 52px 0 0 0; }
+    .lp-head { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+    .lp-search-row { flex-wrap: nowrap; }
+    .cat-btn { max-width: 132px; }
+    .lp-search-row :global(.wrap) { min-width: 110px; }
+    .seg { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+    .seg-btn { flex: none; }
+    .lp-list { padding: var(--space-2); }
+    .row-main { padding: var(--space-3) var(--space-2); }
+    .row-emoji { font-size: 22px; }
+    .dov { margin: var(--space-1) 0 var(--space-3); }
+    .dov-head { flex-wrap: wrap; }
+    .bulk-bar { flex-wrap: wrap; }
+  }
 </style>

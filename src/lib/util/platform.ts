@@ -23,6 +23,16 @@ export const isMac: boolean = (() => {
   return /mac/i.test(uaPlatform);
 })();
 
+/**
+ * True when running as the WEB build — served by `web/server.mjs` with the
+ * fetch-based invoke bridge installed by `src/app.html` (no Tauri host).
+ * Use this to swap native-only affordances (OAuth, in-app updater, native
+ * file dialogs) for their browser equivalents.
+ */
+export const isWeb: boolean =
+  typeof window !== "undefined" &&
+  (window as unknown as { __AGENCY_WEB__?: boolean }).__AGENCY_WEB__ === true;
+
 /** Display label for the primary modifier key: "⌘" on macOS, "Ctrl" elsewhere. */
 export const modKey: string = isMac ? "⌘" : "Ctrl";
 

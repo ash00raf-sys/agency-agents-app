@@ -1,0 +1,17 @@
+{
+  "name": "Agency Agents",
+  "short_name": "Agency Agents",
+  "description": "Browse, install, and track 251+ specialized AI agents across every AI coding tool.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e1e28",
+  "theme_color": "#1e1e28",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

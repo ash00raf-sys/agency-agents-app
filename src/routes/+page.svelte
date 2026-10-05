@@ -22,6 +22,14 @@
   import PanelLeftOpen from "@lucide/svelte/icons/panel-left-open";
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
   import ArrowRight from "@lucide/svelte/icons/arrow-right";
+  // Mobile bottom-nav icons (same set as the Sidebar).
+  import LayoutDashboard from "@lucide/svelte/icons/layout-dashboard";
+  import Bot from "@lucide/svelte/icons/bot";
+  import Wrench from "@lucide/svelte/icons/wrench";
+  import Users from "@lucide/svelte/icons/users";
+  import FolderGit2 from "@lucide/svelte/icons/folder-git-2";
+  import Rocket from "@lucide/svelte/icons/rocket";
+  import Activity from "@lucide/svelte/icons/activity";
 
   import {
     ui,
@@ -29,10 +37,27 @@
     SIDEBAR_MAX_WIDTH,
     SIDEBAR_DEFAULT_WIDTH,
   } from "$lib/stores/ui.svelte";
+  import { install } from "$lib/stores/install.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { i18n } from "$lib/stores/i18n.svelte";
   import { isMac, shortcut } from "$lib/util/platform";
   import type { SidebarSection, ThemePreference } from "$lib/types";
+
+  /** Bottom-nav model — mirrors the Sidebar's items (Agents-first). */
+  const mobileNav: { id: SidebarSection; icon: typeof Bot }[] = [
+    { id: "personas", icon: Bot },
+    { id: "dashboard", icon: LayoutDashboard },
+    { id: "tools", icon: Wrench },
+    { id: "teams", icon: Users },
+    { id: "projects", icon: FolderGit2 },
+    { id: "runbooks", icon: Rocket },
+    { id: "activity", icon: Activity },
+  ];
+
+  /** "N updates" badge for the Agents tab (same rule as the Sidebar). */
+  const updatesCount = $derived(
+    install.installed.filter((i) => i.state === "outdated").length,
+  );
 
   function themeLabel(t: ThemePreference): string {
     return i18n.t(t === "light" ? "app.theme.light" : t === "dark" ? "app.theme.dark" : "app.theme.system");
@@ -142,6 +167,75 @@
   });
 </script>
 
+{#snippet sectionPane()}
+  {#if ui.section === "dashboard"}
+    <AgencyDashboard />
+  {:else if ui.section === "tools"}
+    <ToolsView />
+  {:else if ui.section === "teams"}
+    <Teams />
+  {:else if ui.section === "projects"}
+    <Projects />
+  {:else if ui.section === "personas"}
+    <AgentsWorkspace />
+  {:else if ui.section === "runbooks"}
+    <Runbooks />
+  {:else if ui.section === "activity"}
+    <ActivityHistory />
+  {/if}
+{/snippet}
+
+{#if ui.isNarrow}
+  <!-- ── Mobile shell: top bar + content + bottom tab bar ───────────────
+       Phone-width replacement for the sidebar chrome. Same sections, same
+       components, same ui state — just stacked. -->
+  <div class="app mobile">
+    <header class="mobile-topbar">
+      <button
+        type="button"
+        class="mobile-brand"
+        onclick={() => ui.setSection("personas")}
+        title={i18n.t("nav.homeTitle")}
+      >
+        <span aria-hidden="true">🤖</span>
+        <span class="mobile-brand-name">Agency Agents</span>
+      </button>
+      <h1 class="mobile-title">{sectionTitle(ui.section)}</h1>
+      <div class="mobile-controls">
+        <TitlebarControls />
+      </div>
+    </header>
+    <main class="mobile-content">
+      <div class="section-pane">
+        {@render sectionPane()}
+      </div>
+    </main>
+    <nav class="mobile-nav" aria-label={i18n.t("nav.primary")}>
+      {#each mobileNav as item (item.id)}
+        {@const isActive = ui.section === item.id}
+        <button
+          type="button"
+          class="mobile-tab"
+          class:active={isActive}
+          aria-current={isActive ? "page" : undefined}
+          onclick={() => ui.setSection(item.id)}
+        >
+          <span class="ico" aria-hidden="true"><item.icon size={20} /></span>
+          <span class="label">{sectionTitle(item.id)}</span>
+          {#if item.id === "personas" && updatesCount > 0}
+            <span class="badge" title={i18n.t("agentUpdates.badgeTitle", { count: updatesCount })}>{updatesCount}</span>
+          {/if}
+        </button>
+      {/each}
+    </nav>
+    <CommandPalette />
+    <Settings />
+    <AboutModal />
+    <PlaybookModal />
+    <DeviceFlowModal />
+    <Toast />
+  </div>
+{:else}
 <div
   class="app"
   class:macos={isMac}
@@ -221,21 +315,7 @@
     {/if}
     <main class="content">
         <div class="section-pane">
-          {#if ui.section === "dashboard"}
-            <AgencyDashboard />
-          {:else if ui.section === "tools"}
-            <ToolsView />
-          {:else if ui.section === "teams"}
-            <Teams />
-          {:else if ui.section === "projects"}
-            <Projects />
-          {:else if ui.section === "personas"}
-            <AgentsWorkspace />
-          {:else if ui.section === "runbooks"}
-            <Runbooks />
-          {:else if ui.section === "activity"}
-            <ActivityHistory />
-          {/if}
+          {@render sectionPane()}
         </div>
     </main>
   </div>
@@ -246,8 +326,121 @@
   <DeviceFlowModal />
   <Toast />
 </div>
+{/if}
 
 <style>
+  /* ── Mobile shell (phone-width viewports) ─────────────────────────────
+     ui.isNarrow (matchMedia ≤760px) swaps the desktop chrome for a top
+     bar + bottom tab bar. The section components themselves stay
+     untouched; their own responsive rules (app.css) handle inner layout. */
+  .app.mobile {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--color-surface);
+    /* Respect notches / gesture bars in standalone mobile browsers. */
+    padding-top: env(safe-area-inset-top);
+  }
+  .mobile-topbar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 52px;
+    padding: 0 var(--space-2) 0 var(--space-3);
+    background: var(--color-surface-raised);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .mobile-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    padding: 6px 4px;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--color-text-primary);
+  }
+  .mobile-brand-name {
+    font-weight: var(--fw-semibold);
+    font-size: var(--text-body);
+    white-space: nowrap;
+  }
+  .mobile-title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--text-h3);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+  }
+  .mobile-controls { flex: none; }
+  .mobile-content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .mobile-nav {
+    flex: none;
+    display: flex;
+    background: var(--color-surface-raised);
+    border-top: 1px solid var(--color-border);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mobile-tab {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 2px 7px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    min-width: 0;
+  }
+  .mobile-tab .label {
+    font-size: var(--text-caption);
+    font-weight: var(--fw-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .mobile-tab.active {
+    color: var(--color-text-primary);
+  }
+  .mobile-tab.active .label { font-weight: var(--fw-semibold); }
+  .mobile-tab .badge {
+    position: absolute;
+    top: 4px;
+    right: calc(50% - 22px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 15px;
+    min-width: 15px;
+    padding: 0 4px;
+    border-radius: var(--radius-full);
+    background: var(--color-brand);
+    color: var(--color-text-inverse);
+    font-size: 10px;
+    font-weight: var(--fw-semibold);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .titlebar-btn, .titlebar-title { transition: none; }
+  }
+
   .app {
     display: flex;
     flex-direction: column;
@@ -350,9 +543,6 @@
     /* Don't intercept the draggable region: clicks on the title still
        let the user drag the window. */
     pointer-events: none;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .titlebar-btn, .titlebar-title { transition: none; }
   }
   /* Right-side button cluster — theme dropdown + Settings + Donate.
      Now that the title bar's right half is otherwise empty, this is
