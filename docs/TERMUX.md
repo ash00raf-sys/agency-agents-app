@@ -76,6 +76,11 @@ modified.
 folder (e.g. `~/DevForge/devforge-claude-review`). The list shows each
 overlay with its agent count; **Remove** un-merges it.
 
+**Default:** on a fresh install, `~/DevForge/devforge-claude-review` is
+adopted automatically as a private catalog if it exists and holds agents —
+no clicks needed. (Removing it in Settings writes the state file, so it
+never comes back on its own.)
+
 How the merge works:
 
 - Any folder with at least one parseable agent `.md` file qualifies

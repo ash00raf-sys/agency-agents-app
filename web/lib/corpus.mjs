@@ -20,6 +20,7 @@ import {
   atomicWrite,
   readCapped,
   err,
+  home,
   nowIso,
   MAX_AGENT_BYTES,
   MAX_TARBALL_BYTES,
@@ -61,17 +62,50 @@ const DIVISIONS_FILE = "divisions.json";
 /** slug → absolute file path — byte-exact source reads for private agents. */
 const overlayFiles = new Map();
 
+/**
+ * First-run default overlay: the private DevForge clone (Termux layout).
+ * Seeded ONLY while `state/overlays.json` doesn't exist AND the folder
+ * holds ≥1 parseable agent — once the file is written (even by a Remove),
+ * it is authoritative forever, so removing the overlay in Settings sticks.
+ */
+const DEFAULT_OVERLAYS = [path.join(home(), "DevForge", "devforge-claude-review")];
+
 /** The persisted overlay path list (`state/overlays.json`). */
 export async function loadOverlays(adir) {
+  let raw = null;
   try {
-    const raw = await fsp.readFile(path.join(stateDir(adir), OVERLAYS_FILE), "utf8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed?.overlays)
-      ? parsed.overlays.filter((p) => typeof p === "string")
-      : [];
+    raw = await fsp.readFile(path.join(stateDir(adir), OVERLAYS_FILE), "utf8");
   } catch {
-    return [];
+    /* absent (first run) or unreadable */
   }
+  if (raw !== null) {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed?.overlays)
+        ? parsed.overlays.filter((p) => typeof p === "string")
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // No state file yet: adopt the default DevForge clone when it's there.
+  const seeded = DEFAULT_OVERLAYS.filter((p) => {
+    try {
+      return looksLikeOverlay(p);
+    } catch {
+      return false;
+    }
+  });
+  if (seeded.length > 0) {
+    try {
+      await saveOverlays(adir, seeded);
+      return seeded;
+    } catch {
+      /* state dir not writable — behave as unseeded */
+    }
+  }
+  return [];
 }
 
 export async function saveOverlays(adir, paths) {
