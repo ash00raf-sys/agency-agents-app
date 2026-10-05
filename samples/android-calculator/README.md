@@ -40,12 +40,48 @@ gradle assembleDebug
 termux-open app/build/outputs/apk/debug/app-debug.apk   # sideload
 ```
 
-**One-time SDK setup if you've never built an APK on Termux:**
+**One-time Termux setup** (~10 min, ~1.5 GB — needed for both samples):
 
 ```bash
-pkg install openjdk-17 gradle
-# Android cmdline-tools from developer.android.com, then:
+# 1. Toolchain: Java 17, Gradle, and Termux's native aapt2
+#    (Google's aapt2 binary is x86_64-only; ARM64 phones need Termux's)
+pkg update
+pkg install -y openjdk-17 gradle aapt2 wget unzip
+
+# 2. Android SDK (commandline-tools are Java — they run fine on ARM64)
+cd ~
+wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+unzip commandlinetools-linux-11076708_latest.zip
+mkdir -p ~/android-sdk/cmdline-tools
+mv cmdline-tools ~/android-sdk/cmdline-tools/latest
+
+# 3. Make the env stick for future sessions
+cat >> ~/.bashrc << 'EOF'
+export JAVA_HOME=/data/data/com.termux/files/usr/opt/openjdk
+export ANDROID_HOME=$HOME/android-sdk
+export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+EOF
+source ~/.bashrc
+
+# 4. SDK platform + build tools (accept licenses with yes)
+yes | sdkmanager --licenses
 sdkmanager "platforms;android-34" "build-tools;34.0.0"
+```
+
+The project's `gradle.properties` already points `android.aapt2FromMavenOverride`
+at Termux's aapt2, so the build uses the ARM64 binary. Then:
+
+```bash
+cd <this folder>
+gradle assembleDebug
+```
+
+If Termux's `gradle` is older than 8.7 (AGP 8.5.2 needs ≥ 8.7 — check
+`gradle --version`), bootstrap the pinned wrapper instead:
+
+```bash
+gradle wrapper --gradle-version 8.7
+./gradlew assembleDebug
 ```
 
 ## The full sample loop (why this project exists)

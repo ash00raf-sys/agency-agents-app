@@ -40,12 +40,10 @@ termux-open app/build/outputs/apk/debug/app-debug.apk   # sideload (allow unknow
 ```
 
 **One-time SDK setup if you've never built an APK on Termux:**
-
-```bash
-pkg install openjdk-17 gradle
-# Android cmdline-tools from developer.android.com, then:
-sdkmanager "platforms;android-34" "build-tools;34.0.0"
-```
+follow the full recipe in `samples/android-calculator/README.md`
+(Java 17 + gradle + Termux `aapt2` + SDK platform 34 — needed for both
+samples; this project's `gradle.properties` already carries the aapt2
+override).
 
 (DevForge's artifact/APK builder can do the heavy lifting too — point a
 station build at this folder.)
