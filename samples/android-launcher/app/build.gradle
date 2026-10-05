@@ -1,0 +1,37 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.ash00raf.agencyagents"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.ash00raf.agencyagents"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    // Personal sideload build — debug signing is fine and skips keystore setup.
+    signingConfigs {
+        debug {
+            // Uses the default debug keystore; no configuration needed.
+        }
+    }
+    buildTypes {
+        debug {
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+}
+
+// Deliberately ZERO external dependencies: plain android.app.Activity +
+// WebView. The build needs only the Android SDK + AGP — nothing fetched.
+dependencies {
+}

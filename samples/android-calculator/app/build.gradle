@@ -1,0 +1,30 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.ash00raf.agencycalculator"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.ash00raf.agencycalculator"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+}
+
+// Zero external dependencies: plain android.app.Activity + programmatic UI.
+dependencies {
+}

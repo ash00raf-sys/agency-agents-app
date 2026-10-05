@@ -163,6 +163,11 @@ one-tap buttons.
   filesystem directly.
 - **Agentfile export/import** (Teams view) downloads/uploads in the browser
   instead of using native file dialogs.
+- **Sample Android projects**: `samples/android-launcher` (a real,
+  zero-dependency APK wrapping the web app) and `samples/android-calculator`
+  (an agency-built calculator APK — one Java file, BigDecimal math, the
+  Mobile App Builder agent pre-installed as workspace context; see each
+  README for the build + the full workspace/chat/build loop).
 - **GitHub sign-in and in-app updates** are native-app features; the web
   build updates via `git pull && npm install && npm run build`.
 - The server listens on `0.0.0.0`, so from another device on the same
