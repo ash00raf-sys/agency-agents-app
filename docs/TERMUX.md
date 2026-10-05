@@ -135,6 +135,27 @@ overrides the API base (proxies/tests).
   into the workspace you pick. `~/.station` is never written to; station's
   own skill registry is pinned/curated by design and stays untouched.
 
+## Android: home-screen launchers
+
+Two ways to open the app like a native app (both optional):
+
+**PWA (app icon):** open `http://localhost:8787` in Chrome → menu ⋮ →
+**Add to Home screen** (or "Install app"). The app launches full-screen
+from its own icon, with an offline shell (the server still needs to be
+running for live data — see the widget below).
+
+**Termux:Widget (start + open):** DevForge users already have Termux:Widget
+— one command wires Agency Agents into it:
+
+```bash
+bash web/termux/install-widgets.sh
+```
+
+This installs `~/.shortcuts/Agency Agents` (starts the server if it isn't
+running, waits for it, then opens the app) and `~/.shortcuts/Agency Agents
+stop`. Add the Termux:Widget widget to your home screen and both appear as
+one-tap buttons.
+
 ## Tips
 
 - **Installing to a project**: project-scoped tools (Cursor, opencode) ask

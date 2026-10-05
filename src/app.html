@@ -30,6 +30,18 @@
         if (window.__TAURI_INTERNALS__) return; // native Tauri — nothing to do
         window.__AGENCY_WEB__ = true;
 
+        // PWA: register the service worker (localhost is a secure context,
+        // so the app is installable to the Android home screen). Network-
+        // first — updates land on the next load; the SW only provides an
+        // offline shell.
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("load", function () {
+            navigator.serviceWorker.register("/sw.js").catch(function () {
+              /* offline shell unavailable — the app still works online */
+            });
+          });
+        }
+
         var nextCallbackId = 1;
         var callbacks = new Map();
         var nextEventId = 1;
