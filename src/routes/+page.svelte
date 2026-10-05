@@ -30,6 +30,8 @@
   import FolderGit2 from "@lucide/svelte/icons/folder-git-2";
   import Rocket from "@lucide/svelte/icons/rocket";
   import Activity from "@lucide/svelte/icons/activity";
+  import MessageSquare from "@lucide/svelte/icons/message-square";
+  import ChatView from "$lib/components/ChatView.svelte";
 
   import {
     ui,
@@ -47,6 +49,7 @@
   const mobileNav: { id: SidebarSection; icon: typeof Bot }[] = [
     { id: "personas", icon: Bot },
     { id: "dashboard", icon: LayoutDashboard },
+    { id: "chat", icon: MessageSquare },
     { id: "tools", icon: Wrench },
     { id: "teams", icon: Users },
     { id: "projects", icon: FolderGit2 },
@@ -69,6 +72,7 @@
     if (s === "tools") return i18n.t("nav.tools");
     if (s === "teams") return i18n.t("nav.teams");
     if (s === "projects") return i18n.t("nav.projects");
+    if (s === "chat") return i18n.optional("nav.chat", "Chat");
     if (s === "runbooks") return i18n.t("nav.runbooks");
     return i18n.t("nav.activity");
   }
@@ -178,6 +182,8 @@
     <Projects />
   {:else if ui.section === "personas"}
     <AgentsWorkspace />
+  {:else if ui.section === "chat"}
+    <ChatView />
   {:else if ui.section === "runbooks"}
     <Runbooks />
   {:else if ui.section === "activity"}

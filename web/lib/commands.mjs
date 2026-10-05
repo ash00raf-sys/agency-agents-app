@@ -55,6 +55,20 @@ import {
 } from "./install.mjs";
 import { settingsGet, settingsReset, settingsSet } from "./settings.mjs";
 import { err, home } from "./util.mjs";
+import {
+  saveStationUrl,
+  stationAnalytics,
+  stationEvents,
+  stationStatus,
+  stationUrl,
+} from "./station.mjs";
+import {
+  chatKeyGet,
+  chatKeySet,
+  chatKeySetModel,
+  chatModels,
+  chatUsage,
+} from "./chat.mjs";
 
 /** Web-only: directory listing for the in-app folder picker. */
 async function webListDir(args) {
@@ -81,6 +95,35 @@ async function webListDir(args) {
   });
   const parent = path.dirname(root);
   return { path: root, parent: parent === root ? null : parent, entries: dirs.slice(0, 500) };
+}
+
+/**
+ * Web-only: DevForge session workspaces — the `~/DevForge/<name>` dirs the
+ * station daemon creates (git repo + aider transcript). Read-only scan;
+ * offered as quick-adds in the Projects view and install flow.
+ */
+async function devforgeWorkspaces() {
+  const root = path.join(home(), "DevForge");
+  let ents = [];
+  try {
+    ents = await fsp.readdir(root, { withFileTypes: true });
+  } catch {
+    return { root, workspaces: [] };
+  }
+  const workspaces = [];
+  for (const ent of ents.slice(0, 100)) {
+    if (!ent.isDirectory() || ent.name.startsWith(".")) continue;
+    const dir = path.join(root, ent.name);
+    const hasGit = await fsp.stat(path.join(dir, ".git")).then(() => true).catch(() => false);
+    const hasAider = await fsp
+      .stat(path.join(dir, ".aider.chat.history.jsonl"))
+      .then(() => true)
+      .catch(() => false);
+    if (!hasGit && !hasAider) continue; // not a session workspace
+    workspaces.push({ name: ent.name, path: dir, git: hasGit, aider: hasAider });
+  }
+  workspaces.sort((a, b) => a.name.localeCompare(b.name));
+  return { root, workspaces };
 }
 
 /** Best-effort `reveal_path`: open a path with the platform opener. */
@@ -233,6 +276,34 @@ export async function dispatch(adir, cmd, args) {
       await rebuildCorpus(adir);
       return { path: p, agentCount: 0 };
     }
+
+    // ---- DevForge Station bridge (web build, read-only) ----
+    case "station_status":
+      return stationStatus(adir);
+    case "station_events":
+      return stationEvents(adir, a.limit);
+    case "station_analytics":
+      return stationAnalytics(adir);
+    case "station_url_get":
+      return { url: await stationUrl(adir) };
+    case "station_url_set":
+      return { url: await saveStationUrl(adir, a.url) };
+
+    // ---- Agent chat over OpenRouter (web build) ----
+    case "chat_key_get":
+      return chatKeyGet(adir);
+    case "chat_key_set":
+      return chatKeySet(adir, a.key, a.model);
+    case "chat_model_set":
+      return chatKeySetModel(adir, a.model);
+    case "chat_models":
+      return chatModels(adir);
+    case "chat_usage":
+      return chatUsage(adir);
+
+    // ---- DevForge session workspaces (web build) ----
+    case "web_devforge_workspaces":
+      return devforgeWorkspaces();
 
     // ---- GitHub (quiet degradation in the web build) ----
     case "github_repo_stats":

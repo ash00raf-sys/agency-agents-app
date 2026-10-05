@@ -32,6 +32,7 @@ import { fileURLToPath } from "node:url";
 import { buildDir } from "./lib/repo.mjs";
 import { dispatch } from "./lib/commands.mjs";
 import { appDataDir, err } from "./lib/util.mjs";
+import { chatStream } from "./lib/chat.mjs";
 
 // ---------- CLI ----------
 
@@ -169,11 +170,64 @@ async function handleInvoke(req, res) {
 
 // ---------- Server ----------
 
+/**
+ * POST /api/chat — streaming agent chat over OpenRouter.
+ * Body: { model?, system, messages: [{role, content}] }.
+ * Response: SSE — `data: {"type":"delta","text":"…"}` chunks, then
+ * `data: {"type":"done","usage":{…}}`, or `data: {"type":"error",…}`.
+ * The key never crosses this boundary; only the server holds it.
+ */
+async function handleChatStream(req, res) {
+  let payload;
+  try {
+    const body = await readBody(req, 2 * 1024 * 1024);
+    payload = JSON.parse(body.toString("utf8") || "{}");
+  } catch (e) {
+    res.writeHead(400, { "content-type": "application/json" });
+    res.end(JSON.stringify({ code: "invalid_argument", message: `bad request: ${e.message}` }));
+    return;
+  }
+  const system = String(payload?.system ?? "");
+  const model = payload?.model ? String(payload.model) : null;
+  const messages = Array.isArray(payload?.messages)
+    ? payload.messages
+        .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+        .slice(-40)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, 100_000) }))
+    : [];
+  if (!system || messages.length === 0) {
+    res.writeHead(400, { "content-type": "application/json" });
+    res.end(JSON.stringify({ code: "invalid_argument", message: "system and messages are required" }));
+    return;
+  }
+
+  res.writeHead(200, {
+    "content-type": "text/event-stream",
+    "cache-control": "no-cache, no-transform",
+    connection: "keep-alive",
+    "x-accel-buffering": "no",
+  });
+  const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  try {
+    for await (const part of chatStream(ADIR, { model, system, messages })) {
+      send(part);
+    }
+  } catch (e) {
+    send({ type: "error", message: String(e?.payload?.message ?? e?.message ?? e).slice(0, 300) });
+    console.log("[chat] stream error:", e?.payload?.message ?? e?.message ?? e);
+  }
+  res.end();
+}
+
 const server = http.createServer((req, res) => {
   const url = req.url ?? "/";
   try {
     if (req.method === "POST" && (url === "/api/invoke" || url === "/api/invoke/")) {
       handleInvoke(req, res);
+      return;
+    }
+    if (req.method === "POST" && (url === "/api/chat" || url === "/api/chat/")) {
+      handleChatStream(req, res);
       return;
     }
     if (req.method === "GET" && (url === "/api/health" || url === "/api/ping")) {

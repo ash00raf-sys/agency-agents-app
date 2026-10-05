@@ -591,6 +591,7 @@ export type SidebarSection =
   | "tools"
   | "teams"
   | "projects"
+  | "chat"
   | "runbooks"
   | "activity";
 

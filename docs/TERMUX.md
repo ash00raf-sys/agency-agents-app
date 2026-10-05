@@ -109,6 +109,32 @@ How the merge works:
 The managed catalog (section above) and private overlays can be combined:
 managed provides the base, overlays layer on top.
 
+## Agent chat (OpenRouter)
+
+Talk to any agent in the catalog: open an agent → **Chat**, or use the
+**Chat** tab. The agent's markdown persona is the system prompt; replies
+stream in. First use asks for your **OpenRouter key** (the same one
+DevForge uses) — stored only on the device (`state/openrouter.json`,
+owner-only permissions), never displayed again, and only ever sent to
+OpenRouter by the local server. Model picker from the live OpenRouter
+catalog; per-reply cost and a running spend total are shown in the chat
+header. Conversations persist in the browser. `OPENROUTER_BASE_URL` env
+overrides the API base (proxies/tests).
+
+## DevForge Station integration
+
+- **Station card** (Dashboard, web build): live read-only view of the
+  station daemon — health/version/uptime, current model + tier, context
+  pressure, key balance, one-tap **Open Station**. Quietly shows "not
+  detected" when station isn't running. Default `http://127.0.0.1:8090`;
+  override via `station_url_set`.
+- **DevForge workspaces**: the Projects view lists `~/DevForge/<name>`
+  session workspaces (git + aider transcript) as one-tap quick-adds.
+- **DevForge install target**: project-scoped — installing an agent to
+  DevForge writes `<workspace>/agents/<slug>.md` (plain context markdown)
+  into the workspace you pick. `~/.station` is never written to; station's
+  own skill registry is pinned/curated by design and stays untouched.
+
 ## Tips
 
 - **Installing to a project**: project-scoped tools (Cursor, opencode) ask

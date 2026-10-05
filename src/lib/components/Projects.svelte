@@ -17,6 +17,8 @@
    */
   import { errorText } from "$lib/types";
   import { onMount } from "svelte";
+  import { invoke } from "@tauri-apps/api/core";
+  import { isWeb } from "$lib/util/platform";
   import EmptyState from "./EmptyState.svelte";
   import Pill from "./Pill.svelte";
   import Button from "./Button.svelte";
@@ -39,9 +41,28 @@
   import { i18n } from "$lib/stores/i18n.svelte";
   import type { InstalledAgent } from "$lib/types";
 
+  // ── DevForge session workspaces (web build): the ~/DevForge/<name> dirs
+  //    station creates. Read-only scan surfaced as one-tap quick-adds. ──
+  let devforge: { name: string; path: string; git: boolean; aider: boolean }[] = $state([]);
+
+  async function loadDevforge() {
+    if (!isWeb) return;
+    try {
+      const res = await invoke<{ workspaces: typeof devforge }>("web_devforge_workspaces");
+      // "Already known" = a registered root or a path with installed rows.
+      const known = new Set<string>([
+        ...projects.list.map((p) => p.path),
+      ]);
+      devforge = res.workspaces.filter((w) => !known.has(w.path));
+    } catch {
+      devforge = [];
+    }
+  }
+
   onMount(() => {
     corpus.ensureLoaded();
     projects.refresh();
+    void loadDevforge();
   });
 
   // ── Per-project roster: rows we (or anyone) deployed into that exact path. ──
@@ -234,6 +255,22 @@
     <header class="pr-head">
       <p class="pr-count">{i18n.t("projects.count", { count: projects.list.length })}</p>
       <div class="pr-actions">
+        {#if isWeb && devforge.length > 0}
+          <div class="df-quick">
+            <span class="df-lbl">{i18n.optional("projects.devforgeWorkspaces", "DevForge workspaces")}</span>
+            {#each devforge as w (w.path)}
+              <button
+                class="df-chip"
+                onclick={() => {
+                  projects.register(w.path);
+                  devforge = devforge.filter((x) => x.path !== w.path);
+                  ui.selectProject(w.path);
+                }}
+                title={w.path}
+              >{w.name}</button>
+            {/each}
+          </div>
+        {/if}
         <button class="btn primary" disabled={adding} onclick={addProject}>
           <FolderPlus size={15} /><span>{i18n.t("projects.add")}</span>
         </button>
@@ -305,6 +342,14 @@
 {/if}
 
 <style>
+  .df-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+  .df-lbl { font-size: var(--text-small); color: var(--color-text-muted); }
+  .df-chip {
+    font-size: var(--text-small); font-weight: 600; padding: 3px 10px;
+    border-radius: 999px; border: 1px solid var(--color-border);
+    background: transparent; color: var(--color-text-secondary); cursor: pointer;
+  }
+  .df-chip:hover { border-color: var(--color-primary, #4f46e5); color: var(--color-primary, #4f46e5); }
   .pr { display: flex; flex-direction: column; height: 100%; min-height: 0; }
   .pr-head {
     flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
