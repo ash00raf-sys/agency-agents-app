@@ -12,7 +12,7 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 
 import { baselineDir, repoRoot } from "./repo.mjs";
-import { parseAgent } from "./frontmatter.mjs";
+import { parseAgent, parseStationSkill } from "./frontmatter.mjs";
 import {
   collectMdFiles,
   findMdUnder,
@@ -68,7 +68,20 @@ const overlayFiles = new Map();
  * holds ≥1 parseable agent — once the file is written (even by a Remove),
  * it is authoritative forever, so removing the overlay in Settings sticks.
  */
-const DEFAULT_OVERLAYS = [path.join(home(), "DevForge", "devforge-claude-review")];
+const DEFAULT_OVERLAYS = [
+  path.join(home(), "DevForge", "devforge-claude-review"),
+  // DevForge's live skill library — station skills import as private agents.
+  path.join(home(), ".station", "library-skills"),
+];
+
+/**
+ * Overlay-tolerant agent parse: standard YAML-frontmatter agents first,
+ * then DevForge station skills (trust-header format). The public catalog
+ * stays strict — only private overlays accept the station shape.
+ */
+function parseOverlayAgent(slug, category, raw) {
+  return parseAgent(slug, category, raw) ?? parseStationSkill(slug, category, raw);
+}
 
 /** The persisted overlay path list (`state/overlays.json`). */
 export async function loadOverlays(adir) {
@@ -120,7 +133,7 @@ export function countAgentsAnywhere(root) {
   for (const file of collectMdFiles(root)) {
     try {
       const raw = fs.readFileSync(file, "utf8");
-      if (parseAgent(path.basename(file, ".md"), "", raw)) n++;
+      if (parseOverlayAgent(path.basename(file, ".md"), "", raw)) n++;
     } catch {
       /* skip unreadable */
     }
@@ -203,7 +216,7 @@ function buildOverlayPiece(root) {
     for (const ent of fs.readdirSync(root, { withFileTypes: true })) {
       if (!ent.isFile() || !ent.name.endsWith(".md")) continue;
       const raw = fs.readFileSync(path.join(root, ent.name), "utf8");
-      addAgent(parseAgent(ent.name.replace(/\.md$/, ""), ROOT_DIVISION, raw), ROOT_DIVISION, path.join(root, ent.name));
+      addAgent(parseOverlayAgent(ent.name.replace(/\.md$/, ""), ROOT_DIVISION, raw), ROOT_DIVISION, path.join(root, ent.name));
     }
   } catch {
     /* unreadable root */
@@ -224,7 +237,7 @@ function buildOverlayPiece(root) {
     for (const file of collectMdFiles(path.join(root, dir))) {
       const raw = fs.readFileSync(file, "utf8");
       const slug = path.basename(file, ".md");
-      addAgent(parseAgent(slug, dir, raw), dir, file);
+      addAgent(parseOverlayAgent(slug, dir, raw), dir, file);
     }
   }
 

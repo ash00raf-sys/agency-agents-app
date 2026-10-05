@@ -81,6 +81,15 @@ adopted automatically as a private catalog if it exists and holds agents —
 no clicks needed. (Removing it in Settings writes the state file, so it
 never comes back on its own.)
 
+**DevForge station skills:** `~/.station/library-skills` is also adopted by
+default. Station skill files (trust-header format: banner, `name:` /
+`source:` lines, `---`, then the skill body) import as private agents with
+their provenance shown. They install everywhere: to Claude Code / Gemini /
+etc. as clean agent files with synthesized frontmatter. In the other
+direction, installing any catalog agent to the **DevForge** target writes a
+native station skill (`~/.station/library-skills/{slug}.md`, same
+trust-header shape station itself uses).
+
 How the merge works:
 
 - Any folder with at least one parseable agent `.md` file qualifies

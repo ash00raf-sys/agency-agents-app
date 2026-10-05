@@ -20,6 +20,7 @@ const IMPLEMENTED_FORMATS = new Set([
   "cursor-mdc",
   "opencode-md",
   "skill-md",
+  "station-md",
 ]);
 
 let cached = null;

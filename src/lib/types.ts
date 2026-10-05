@@ -352,6 +352,8 @@ export interface Agent {
       catalog overlay (the user's own local repo merged over the catalog).
       Absent for catalog agents. */
   source?: "private";
+  /** Set on private agents parsed from DevForge station skills (web build). */
+  originFormat?: "station";
 }
 
 /**
