@@ -47,7 +47,236 @@ export const managedDir = (home) => path.join(home, ".agency-agents");
 const INDEX_FILE = "corpus-index.json";
 const META_FILE = "corpus-meta.json";
 const CATALOG_SOURCE_FILE = "catalog.json";
+const OVERLAYS_FILE = "overlays.json";
 const DIVISIONS_FILE = "divisions.json";
+
+// ---------- Private catalog overlays (web build) ----------
+//
+// A private overlay is a LOCAL folder (e.g. the user's own agent repo,
+// kept untouched on disk) merged OVER the active catalog at corpus-build
+// time. Overlay agents win slug collisions; overlay divisions that don't
+// exist in the base catalog are appended as first-class tiles. The overlay
+// repo is only ever READ.
+
+/** slug → absolute file path — byte-exact source reads for private agents. */
+const overlayFiles = new Map();
+
+/** The persisted overlay path list (`state/overlays.json`). */
+export async function loadOverlays(adir) {
+  try {
+    const raw = await fsp.readFile(path.join(stateDir(adir), OVERLAYS_FILE), "utf8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed?.overlays)
+      ? parsed.overlays.filter((p) => typeof p === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveOverlays(adir, paths) {
+  const sdir = stateDir(adir);
+  await fsp.mkdir(sdir, { recursive: true });
+  await atomicWrite(path.join(sdir, OVERLAYS_FILE), JSON.stringify({ overlays: paths }, null, 2));
+}
+
+/** Count parseable agent `.md` files anywhere under `root` (validation). */
+export function countAgentsAnywhere(root) {
+  let n = 0;
+  for (const file of collectMdFiles(root)) {
+    try {
+      const raw = fs.readFileSync(file, "utf8");
+      if (parseAgent(path.basename(file, ".md"), "", raw)) n++;
+    } catch {
+      /* skip unreadable */
+    }
+  }
+  return n;
+}
+
+/** Does `root` qualify as a private overlay (≥1 parseable agent)? */
+export function looksLikeOverlay(root) {
+  try {
+    if (!fs.statSync(root).isDirectory()) return false;
+  } catch {
+    return false;
+  }
+  return countAgentsAnywhere(root) > 0;
+}
+
+/** Stable, pleasant fallback colors for custom (non-standard) divisions. */
+const DIVISION_PALETTE = [
+  "#0EA5E9", "#8B5CF6", "#F97316", "#10B981", "#EC4899",
+  "#6366F1", "#EAB308", "#14B8A6", "#F43F5E", "#84CC16",
+];
+
+function stableHash(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function titleCase(slug) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/**
+ * Build an overlay corpus piece from a local folder. Categories are the
+ * REAL top-level dirs that hold ≥1 agent `.md`; root-level agent files map
+ * to a synthesized "private" division. `divisions.json` at the root (same
+ * shape as the catalog's) supplies custom labels/icons/colors when present.
+ */
+function buildOverlayPiece(root) {
+  const agents = [];
+  const index = new Map();
+  const categories = new Set();
+  const divisionMeta = {};
+
+  // Add one parsed agent, keeping `agents` and `index` in sync when the same
+  // slug shows up twice (later file wins, e.g. root + subfolder collision).
+  const addAgent = (parsed, category, file) => {
+    if (!parsed) return;
+    const slug = parsed.entry.slug;
+    const prevIndex = index.get(slug);
+    if (prevIndex) {
+      const i = agents.findIndex((a) => a.slug === slug);
+      if (i !== -1) agents[i] = parsed.agent;
+    } else {
+      agents.push(parsed.agent);
+    }
+    index.set(slug, parsed.entry);
+    categories.add(category);
+    overlayFiles.set(slug, file);
+  };
+
+  // Custom division metadata, when the overlay ships it.
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(root, DIVISIONS_FILE), "utf8"));
+    if (parsed?.divisions && typeof parsed.divisions === "object") {
+      Object.assign(divisionMeta, parsed.divisions);
+    }
+  } catch {
+    /* none — synthesize */
+  }
+
+  // Root-level agent files → the "private" division.
+  const ROOT_DIVISION = "private";
+  try {
+    for (const ent of fs.readdirSync(root, { withFileTypes: true })) {
+      if (!ent.isFile() || !ent.name.endsWith(".md")) continue;
+      const raw = fs.readFileSync(path.join(root, ent.name), "utf8");
+      addAgent(parseAgent(ent.name.replace(/\.md$/, ""), ROOT_DIVISION, raw), ROOT_DIVISION, path.join(root, ent.name));
+    }
+  } catch {
+    /* unreadable root */
+  }
+
+  // Division folders (any name) — the overlay's own structure wins.
+  let dirs = [];
+  try {
+    dirs = fs
+      .readdirSync(root, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+      .map((e) => e.name)
+      .sort();
+  } catch {
+    /* unreadable */
+  }
+  for (const dir of dirs) {
+    for (const file of collectMdFiles(path.join(root, dir))) {
+      const raw = fs.readFileSync(file, "utf8");
+      const slug = path.basename(file, ".md");
+      addAgent(parseAgent(slug, dir, raw), dir, file);
+    }
+  }
+
+  if (agents.length === 0) return null;
+
+  // Synthesize metadata for divisions without a divisions.json entry.
+  for (const slug of categories) {
+    if (!divisionMeta[slug]) {
+      divisionMeta[slug] = {
+        label: titleCase(slug),
+        icon: "Sparkles",
+        color: DIVISION_PALETTE[stableHash(slug) % DIVISION_PALETTE.length],
+      };
+    }
+  }
+
+  return { root, agents, index, categories, divisionMeta };
+}
+
+/**
+ * Merge every configured overlay over the base corpus (in place + return).
+ * Overlay agents replace base agents on slug collision (yours win) and are
+ * flagged `source: "private"` so the UI can badge them.
+ */
+export async function withOverlays(adir, corpus) {
+  overlayFiles.clear();
+  const paths = await loadOverlays(adir);
+  if (paths.length === 0) {
+    corpus.privateCount = 0;
+    return corpus;
+  }
+
+  let privateCount = 0;
+  for (const overlayPath of paths) {
+    const piece = buildOverlayPiece(overlayPath);
+    if (!piece) continue; // vanished or empty — skip quietly
+
+    const agentBySlug = new Map(piece.agents.map((a) => [a.slug, a]));
+    for (const [slug, entry] of piece.index) {
+      const agent = agentBySlug.get(slug);
+      if (!agent) continue;
+      const tagged = { ...agent, source: "private" };
+      // Replace-or-append into the base corpus (overlay wins collisions).
+      if (corpus.index.has(slug)) {
+        const i = corpus.agents.findIndex((a) => a.slug === slug);
+        if (i !== -1) corpus.agents[i] = tagged;
+      } else {
+        corpus.agents.push(tagged);
+        privateCount++;
+      }
+      corpus.index.set(slug, { ...entry });
+    }
+
+    // Division tiles: base set first, then overlay-only divisions. Overlay
+    // meta fills gaps — it never overrides curated base division meta.
+    for (const cat of piece.categories) {
+      if (!corpus.categoryOrder.includes(cat)) corpus.categoryOrder.push(cat);
+    }
+    for (const [slug, meta] of Object.entries(piece.divisionMeta)) {
+      if (!corpus.divisionMeta[slug]) corpus.divisionMeta[slug] = meta;
+    }
+  }
+
+  // Restore the stable (category, slug) ordering after the merge.
+  corpus.agents.sort((a, b) =>
+    a.category === b.category
+      ? a.slug < b.slug
+        ? -1
+        : a.slug > b.slug
+          ? 1
+          : 0
+      : a.category < b.category
+        ? -1
+        : 1,
+  );
+  corpus.meta.count = corpus.index.size;
+  corpus.privateCount = privateCount;
+  return corpus;
+}
+
+/** Overlay descriptors for the UI: path + live agent count. */
+export async function listOverlays(adir) {
+  const paths = await loadOverlays(adir);
+  return paths.map((p) => ({ path: p, agentCount: looksLikeOverlay(p) ? countAgentsAnywhere(p) : 0 }));
+}
+
 
 // ---------- Division metadata (bundled floor) ----------
 
@@ -335,11 +564,27 @@ export async function resolveActive(adir) {
   } catch (e) {
     console.warn("[corpus] persist index/meta failed:", e?.payload?.message ?? e);
   }
+
+  // Private overlays merge AFTER the base persist, so the on-disk index
+  // stays a faithful picture of the active catalog and the in-memory
+  // corpus carries the merged (public + private) view.
+  try {
+    await withOverlays(adir, corpus);
+  } catch (e) {
+    console.warn("[corpus] overlay merge failed:", e?.payload?.message ?? e);
+  }
   return corpus;
 }
 
 /** Read the raw, byte-exact `.md` source of an agent (nested-aware). */
 export async function readSource(adir, category, slug) {
+  // Private overlay agents (and overlay winners of slug collisions) are
+  // served from the overlay file — never from the base catalog.
+  const overlayFile = overlayFiles.get(slug);
+  if (overlayFile) {
+    const bytes = await readCapped(overlayFile, MAX_AGENT_BYTES);
+    return bytes.toString("utf8");
+  }
   const source = await loadCatalogSource(adir);
   const catDir = path.join(catalogRoot(adir, source), category);
   const fname = `${slug}.md`;
@@ -413,6 +658,7 @@ export async function refreshCorpus(adir) {
     ),
   );
   corpus.meta.fetchedAt = fetchedAt;
+  await withOverlays(adir, corpus);
   corpusCache = corpus;
   return corpus.meta;
 }

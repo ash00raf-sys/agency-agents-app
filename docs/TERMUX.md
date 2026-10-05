@@ -65,6 +65,36 @@ Then in the app: **Settings → Catalog → Set up a managed catalog** (clones
 refresh falls back to downloading the GitHub snapshot — either way you get
 the newest agents + NEXUS runbooks.
 
+## Private catalogs (overlays)
+
+Have your own agent repo — e.g. a private DevForge clone — and want its
+agents to show up alongside the main catalog? Add it as a **private
+catalog**: it's merged in read-only at runtime, the folder itself is never
+modified.
+
+**In the app:** Settings → Catalog → **Add private catalog…** → pick the
+folder (e.g. `~/DevForge/devforge-claude-review`). The list shows each
+overlay with its agent count; **Remove** un-merges it.
+
+How the merge works:
+
+- Any folder with at least one parseable agent `.md` file qualifies
+  (recursively found — any layout works).
+- Top-level folders containing agents become categories/divisions;
+  `.md` files at the overlay root land in a **private** division.
+- A `divisions.json` at the overlay root overrides the synthesized
+  division labels/colors/icons.
+- If a private agent has the same slug as a catalog agent, the **private
+  one wins**.
+- Private agents get a small **private** badge in the agents list and on
+  their profile.
+- Your list of overlays is saved in `~/.agency-agents/state/overlays.json`
+  (or `$AGENCY_DATA_DIR/state/overlays.json`); the base catalog files on
+  disk stay untouched.
+
+The managed catalog (section above) and private overlays can be combined:
+managed provides the base, overlays layer on top.
+
 ## Tips
 
 - **Installing to a project**: project-scoped tools (Cursor, opencode) ask
@@ -101,5 +131,7 @@ these intentional exceptions:
   available — the UI degrades quietly.
 - Native file/folder dialogs are replaced by the in-app folder browser and
   browser downloads.
+- Private catalogs (overlays) are web-only; the native app doesn't show
+  that section.
 - Everything else — corpus, installs, reconciliation, Teams, Projects,
   Runbooks, Activity, Settings — works the same.

@@ -19,9 +19,13 @@ import {
   corpusList,
   corpusVersion,
   ensureCorpus,
+  listOverlays,
+  loadOverlays,
+  looksLikeOverlay,
   rebuildCorpus,
   refreshCorpus,
   runbooksList,
+  saveOverlays,
 } from "./corpus.mjs";
 import {
   catalogCheckUpdates,
@@ -201,6 +205,34 @@ export async function dispatch(adir, cmd, args) {
     // ---- Web-only helpers ----
     case "web_list_dir":
       return webListDir(a);
+
+    // ---- Private catalog overlays (web build) ----
+    case "web_overlays_list":
+      return listOverlays(adir);
+    case "web_overlays_add": {
+      const p = String(a.path ?? "");
+      if (!p) throw err.invalidArgument("overlay path required");
+      if (!looksLikeOverlay(p)) {
+        throw err.invalidArgument(
+          `${p} doesn't look like an agent catalog (no .md files with name frontmatter found)`,
+        );
+      }
+      const paths = await loadOverlays(adir);
+      const abs = path.resolve(p);
+      if (!paths.includes(abs)) paths.push(abs);
+      await saveOverlays(adir, paths);
+      await rebuildCorpus(adir);
+      return { path: abs, agentCount: (await listOverlays(adir)).find((o) => o.path === abs)?.agentCount ?? 0 };
+    }
+    case "web_overlays_remove": {
+      const p = String(a.path ?? "");
+      const paths = (await loadOverlays(adir)).filter(
+        (x) => x !== p && path.resolve(x) !== path.resolve(p),
+      );
+      await saveOverlays(adir, paths);
+      await rebuildCorpus(adir);
+      return { path: p, agentCount: 0 };
+    }
 
     // ---- GitHub (quiet degradation in the web build) ----
     case "github_repo_stats":
