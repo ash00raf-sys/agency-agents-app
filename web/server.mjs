@@ -33,6 +33,7 @@ import { buildDir } from "./lib/repo.mjs";
 import { dispatch } from "./lib/commands.mjs";
 import { appDataDir, err } from "./lib/util.mjs";
 import { chatStream } from "./lib/chat.mjs";
+import { resolvePreviewFile } from "./lib/preview.mjs";
 
 // ---------- CLI ----------
 
@@ -126,6 +127,28 @@ function serveStatic(req, res) {
 }
 
 // ---------- Invoke bridge ----------
+
+/**
+ * GET /p/<name>/… — live preview of a registered project (web/JS output).
+ * Resolution and traversal checks live in lib/preview.mjs; this streams the
+ * file with no-store so a fresh build is visible on the next reload.
+ */
+async function servePreviewFile(req, res) {
+  const result = await resolvePreviewFile(ADIR, req.url ?? "/");
+  if (!result || result.notFound || !result.file) {
+    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    res.end(`Agency Agents preview: ${result?.notFound ?? "not found"}`);
+    return;
+  }
+  const ext = path.extname(result.file).toLowerCase();
+  const type = MIME[ext] ?? "application/octet-stream";
+  res.writeHead(200, {
+    "content-type": type,
+    "cache-control": "no-store",
+    "content-length": result.size,
+  });
+  fs.createReadStream(result.file).pipe(res);
+}
 
 async function readBody(req, cap = 64 * 1024 * 1024) {
   const chunks = [];
@@ -233,6 +256,10 @@ const server = http.createServer((req, res) => {
     if (req.method === "GET" && (url === "/api/health" || url === "/api/ping")) {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ ok: true, version: "0.3.2", dataDir: ADIR }));
+      return;
+    }
+    if (req.method === "GET" && url.startsWith("/p/")) {
+      servePreviewFile(req, res);
       return;
     }
     if (req.method === "GET") {

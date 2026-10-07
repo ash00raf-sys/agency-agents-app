@@ -163,7 +163,14 @@ one-tap buttons.
   filesystem directly.
 - **Agentfile export/import** (Teams view) downloads/uploads in the browser
   instead of using native file dialogs.
-- **Sample Android projects**: `samples/android-launcher` (a real,
+- **Live project preview + web builder** (web build): every project you open
+  gets a live URL at `/p/<name>/` served by the app itself — static sites
+  and `build/`/`dist/` output work out of the box, and **Build web app**
+  runs `npm run build` on the phone (the only command it runs; you confirm
+  each time). Build history lands in `state/builds.jsonl`. APK projects
+  are detected and pointed at DevForge instead.
+- **Sample projects**: `samples/web-starter` (web: preview + build loop),
+  `samples/android-launcher` (a real,
   zero-dependency APK wrapping the web app) and `samples/android-calculator`
   (an agency-built calculator APK — one Java file, BigDecimal math, the
   Mobile App Builder agent pre-installed as workspace context; see each

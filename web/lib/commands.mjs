@@ -56,6 +56,12 @@ import {
 import { settingsGet, settingsReset, settingsSet } from "./settings.mjs";
 import { err, home } from "./util.mjs";
 import {
+  buildsHistory,
+  detectAndRegister,
+  registerRoot,
+  runBuild,
+} from "./preview.mjs";
+import {
   saveStationUrl,
   stationAnalytics,
   stationEvents,
@@ -248,6 +254,16 @@ export async function dispatch(adir, cmd, args) {
     // ---- Web-only helpers ----
     case "web_list_dir":
       return webListDir(a);
+
+    // ---- Project preview + web builder (web build) ----
+    case "preview_register":
+      return registerRoot(adir, a.path);
+    case "preview_detect":
+      return detectAndRegister(adir, a.path);
+    case "preview_build":
+      return runBuild(adir, a.path);
+    case "preview_history":
+      return buildsHistory(adir, typeof a.limit === "number" ? a.limit : 100);
 
     // ---- Private catalog overlays (web build) ----
     case "web_overlays_list":

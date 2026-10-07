@@ -31,6 +31,8 @@
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import LayersIcon from "@lucide/svelte/icons/layers";
   import Trash2 from "@lucide/svelte/icons/trash-2";
+  import Globe from "@lucide/svelte/icons/globe";
+  import Hammer from "@lucide/svelte/icons/hammer";
 
   import { install } from "$lib/stores/install.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
@@ -133,6 +135,55 @@
   // ── Deploy into a project: the two-pane DeployBrowser. ──
   let browseFor = $state<string | null>(null); // project path, or null = closed
 
+  // ── Web preview + builder (web build): detect the selected project's type,
+  //    expose its live /p/<name>/ URL, and run web builds from the app. ──
+  type PreviewInfo = {
+    kind: string;
+    label: string;
+    previewable: boolean;
+    buildable: boolean;
+    buildCmd: string | null;
+    hint: string | null;
+    name: string;
+    previewUrl: string;
+    path: string;
+  };
+  type BuildResult = { ran: boolean; ok: boolean; log: string; durationMs?: number };
+  let pv = $state<PreviewInfo | null>(null);
+  let buildFor = $state<PreviewInfo | null>(null); // open modal
+  let building = $state(false);
+  let buildResult = $state<BuildResult | null>(null);
+
+  $effect(() => {
+    const p = ui.projectsSelected;
+    pv = null;
+    if (!isWeb || !p) return;
+    invoke<PreviewInfo>("preview_detect", { path: p })
+      .then((r) => {
+        if (ui.projectsSelected === p) pv = r;
+      })
+      .catch(() => (pv = null));
+  });
+
+  function openBuild(info: PreviewInfo) {
+    buildResult = null;
+    building = false;
+    buildFor = info;
+  }
+
+  async function runWebBuild() {
+    if (!buildFor || building) return;
+    building = true;
+    buildResult = null;
+    try {
+      buildResult = await invoke<BuildResult>("preview_build", { path: buildFor.path });
+    } catch (e) {
+      buildResult = { ran: false, ok: false, log: errorText(e) };
+    } finally {
+      building = false;
+    }
+  }
+
   async function reveal(path: string) {
     try {
       await install.revealPath(path);
@@ -211,6 +262,19 @@
         <button class="dh-path" title={selected.path} onclick={() => reveal(selected.path)}>{selected.path}</button>
       </div>
       <span class="dh-count">{i18n.count(selected.installedCount, "common.agent.one", "common.agent.many")}</span>
+      {#if pv}
+        <span class="kind-pill" title={pv.hint ?? pv.label}>{pv.label}</span>
+      {/if}
+      {#if pv?.previewable}
+        <button class="btn" onclick={() => pv && window.open(pv.previewUrl, "_blank")} title={pv.previewUrl}>
+          <Globe size={15} /><span>{i18n.optional("projects.openPreview", "Open preview")}</span>
+        </button>
+      {/if}
+      {#if pv?.buildable}
+        <button class="btn" onclick={() => pv && openBuild(pv)}>
+          <Hammer size={15} /><span>{i18n.optional("projects.buildWeb", "Build web app")}</span>
+        </button>
+      {/if}
       <button class="btn" onclick={() => reveal(selected.path)}><FolderOpen size={15} /><span>{i18n.t("common.reveal")}</span></button>
       <button class="btn primary" onclick={() => (browseFor = selected.path)}>{i18n.t("teams.deploy")}</button>
       <button class="btn danger-ic" title={i18n.t("projects.removeTitle")} aria-label={i18n.t("projects.removeAria")} onclick={() => (confirm = { path: selected.path, label: selected.label, count: selected.installedCount })}><Trash2 size={15} /></button>
@@ -315,6 +379,55 @@
 
 {#if browseFor !== null}
   <DeployBrowser projectPath={browseFor} onClose={() => (browseFor = null)} />
+{/if}
+
+{#if buildFor}
+  <Modal
+    open
+    title={i18n.optional("projects.buildTitle", `Build ${buildFor.label}`)}
+    onClose={() => (buildFor = null)}
+  >
+    <div class="build-body">
+      <p class="build-path">{buildFor.path}</p>
+      <p class="build-cmd"><code>{buildFor.buildCmd ?? "npm run build"}</code></p>
+      <p class="build-note">
+        {i18n.optional(
+          "projects.buildWarning",
+          "Runs on your phone with Termux access — only build projects you trust.",
+        )}
+      </p>
+      {#if buildResult}
+        <pre class="build-log" class:bad={!buildResult.ok}>{buildResult.log || "(no output)"}</pre>
+        {#if buildResult.ok}
+          <p class="build-ok">
+            ✓ {i18n.optional("projects.buildDone", "Built")} ·
+            {buildResult.durationMs != null ? `${(buildResult.durationMs / 1000).toFixed(1)}s · ` : ""}
+            <a href={buildFor.previewUrl} target="_blank" rel="noreferrer">
+              {i18n.optional("projects.openPreview", "Open preview")}
+            </a>
+          </p>
+        {/if}
+      {:else if building}
+        <p class="build-wait">{i18n.optional("projects.building", "Building… (this can take a minute)")}</p>
+      {/if}
+    </div>
+    {#snippet actions()}
+      <Button variant="secondary" modalAction="cancel" onclick={() => (buildFor = null)}>
+        {i18n.t("common.close")}
+      </Button>
+      {#if buildResult?.ok}
+        <Button variant="primary" onclick={() => window.open(buildFor.previewUrl, "_blank")}>
+          {i18n.optional("projects.openPreview", "Open preview")}
+        </Button>
+      {:else}
+        <Button variant="primary" disabled={building} onclick={runWebBuild}>
+          {building
+            ? i18n.optional("projects.building", "Building…")
+            : i18n.optional("projects.runBuild", "Run build")}
+        </Button>
+      {/if}
+    {/snippet}
+  </Modal>
 {/if}
 
 {#if confirm}
@@ -436,5 +549,30 @@
   /* ── Remove-project confirm dialog ── */
   .del-body { color: var(--color-text-primary); font-size: var(--text-body); }
   .del-note { margin-top: var(--space-3); color: var(--color-text-muted); font-size: var(--text-body-sm); line-height: 1.5; }
+
+  /* ── Project kind + web build modal ── */
+  .kind-pill {
+    flex: none; font-size: var(--text-caption); font-weight: var(--fw-semibold);
+    padding: 2px 10px; border-radius: 999px; border: 1px solid var(--color-border);
+    color: var(--color-text-secondary); white-space: nowrap; max-width: 140px;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .build-body { display: flex; flex-direction: column; gap: var(--space-3); }
+  .build-path { margin: 0; color: var(--color-text-muted); font-size: var(--text-caption); word-break: break-all; }
+  .build-cmd { margin: 0; }
+  .build-cmd code {
+    background: var(--color-surface-sunken); padding: 3px 10px; border-radius: var(--radius-sm);
+    font-size: var(--text-body-sm);
+  }
+  .build-note { margin: 0; color: var(--color-text-muted); font-size: var(--text-body-sm); line-height: 1.5; }
+  .build-log {
+    margin: 0; max-height: 280px; overflow: auto; white-space: pre-wrap; word-break: break-all;
+    background: var(--color-surface-sunken); border-radius: var(--radius-md);
+    padding: var(--space-3); font-size: var(--text-caption); line-height: 1.5;
+  }
+  .build-log.bad { color: var(--color-danger, #ef4444); }
+  .build-wait { margin: 0; color: var(--color-text-muted); font-size: var(--text-body-sm); }
+  .build-ok { margin: 0; color: var(--color-text-primary); font-size: var(--text-body-sm); }
+  .build-ok a { color: var(--color-text-link, var(--color-brand)); }
 
 </style>
