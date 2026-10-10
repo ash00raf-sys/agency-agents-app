@@ -42,6 +42,8 @@
   import { PRESET_TEAMS } from "$lib/data/presetTeams";
   import { TEAM_EXAMPLES } from "$lib/data/playbook";
   import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+  import { downloadJson, pickFileAsText } from "$lib/web/webBridge";
+  import { isWeb } from "$lib/util/platform";
   import type { InstalledAgent, Agent } from "$lib/types";
   import type { Component } from "svelte";
 
@@ -230,7 +232,24 @@
   }
 
   // ── Agentfile export / restore (your current team) ──
+  // Web build: download the manifest in the browser / upload a file instead
+  // of the native save/open dialogs (there is no shared filesystem picker
+  // in mobile browsers).
   async function exportLoadout() {
+    if (isWeb) {
+      busy = true;
+      try {
+        const json = await install.exportLoadoutWeb();
+        const count = JSON.parse(json)?.installs?.length ?? 0;
+        downloadJson(json, "Agentfile.json");
+        toast.success(i18n.t("teams.exportedToast", { count }));
+      } catch (e) {
+        toast.error(i18n.t("teams.exportFailed"), errorText(e));
+      } finally {
+        busy = false;
+      }
+      return;
+    }
     const path = await saveDialog({ title: i18n.t("teams.saveAgentfileTitle"), defaultPath: "Agentfile.json", filters: [{ name: "Agentfile", extensions: ["json"] }] });
     if (!path) return;
     busy = true;
@@ -244,6 +263,20 @@
     }
   }
   async function importLoadout() {
+    if (isWeb) {
+      const json = await pickFileAsText();
+      if (!json) return;
+      busy = true;
+      try {
+        const recs = await install.importLoadoutWeb(json);
+        toast.success(i18n.t("teams.restoredToast", { count: recs.length }));
+      } catch (e) {
+        toast.error(i18n.t("teams.restoreFailed"), errorText(e));
+      } finally {
+        busy = false;
+      }
+      return;
+    }
     const picked = await openDialog({ title: i18n.t("teams.restoreAgentfileTitle"), multiple: false, filters: [{ name: "Agentfile", extensions: ["json"] }] });
     if (!picked || Array.isArray(picked)) return;
     busy = true;

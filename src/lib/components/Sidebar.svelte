@@ -6,6 +6,7 @@
   import FolderGit2 from "@lucide/svelte/icons/folder-git-2";
   import Rocket from "@lucide/svelte/icons/rocket";
   import Activity from "@lucide/svelte/icons/activity";
+  import MessageSquare from "@lucide/svelte/icons/message-square";
 
   import { ui } from "$lib/stores/ui.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
@@ -27,11 +28,12 @@
   const nav: NavItem[] = [
     { id: "dashboard", shortcut: shortcut("0"), icon: LayoutDashboard },
     { id: "personas",  shortcut: shortcut("1"), icon: Bot },
-    { id: "tools",     shortcut: shortcut("2"), icon: Wrench },
-    { id: "teams",     shortcut: shortcut("3"), icon: Users },
-    { id: "projects",  shortcut: shortcut("4"), icon: FolderGit2 },
-    { id: "runbooks",  shortcut: shortcut("5"), icon: Rocket },
-    { id: "activity",  shortcut: shortcut("6"), icon: Activity },
+    { id: "chat",      shortcut: shortcut("2"), icon: MessageSquare },
+    { id: "tools",     shortcut: shortcut("3"), icon: Wrench },
+    { id: "teams",     shortcut: shortcut("4"), icon: Users },
+    { id: "projects",  shortcut: shortcut("5"), icon: FolderGit2 },
+    { id: "runbooks",  shortcut: shortcut("6"), icon: Rocket },
+    { id: "activity",  shortcut: shortcut("7"), icon: Activity },
   ];
 
   function label(id: SidebarSection): string {
@@ -40,6 +42,7 @@
     if (id === "tools") return i18n.t("nav.tools");
     if (id === "teams") return i18n.t("nav.teams");
     if (id === "projects") return i18n.t("nav.projects");
+    if (id === "chat") return i18n.optional("nav.chat", "Chat");
     if (id === "runbooks") return i18n.t("nav.runbooks");
     return i18n.t("nav.activity");
   }

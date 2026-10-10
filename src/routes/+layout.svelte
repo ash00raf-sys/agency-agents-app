@@ -8,6 +8,7 @@
   import { settings } from "$lib/stores/settings.svelte";
   import { catalog } from "$lib/stores/catalog.svelte";
   import { i18n } from "$lib/stores/i18n.svelte";
+  import { installWebDialogs } from "$lib/web/webBridge";
   import CatalogFirstRun from "$lib/components/CatalogFirstRun.svelte";
 
   let { children } = $props();
@@ -15,6 +16,11 @@
   onMount(() => {
     i18n.init();
     ui.loadThemeFromStorage();
+    // Web build: mount the browser implementations for the native dialogs
+    // (folder picker) the app.html shim delegates to. No-op in Tauri.
+    installWebDialogs();
+    // Responsive: phone-width viewports get the mobile shell.
+    const unwatchNarrow = ui.initResponsive();
     // Settings (Phase 12b) — all read with enum/numeric validation so a
     // corrupt or hostile localStorage entry can't poison runtime state.
     ui.loadDefaultSectionFromStorage();
@@ -66,6 +72,7 @@
     const unwatch = watchSystemTheme(() => ui.theme);
     return () => {
       unwatch();
+      unwatchNarrow();
       unlistenAbout?.();
       unlistenSettings?.();
     };

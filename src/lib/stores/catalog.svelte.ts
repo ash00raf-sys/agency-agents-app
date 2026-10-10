@@ -42,6 +42,9 @@ class CatalogStore {
   scanning: boolean = $state(false);
   /** Last error surfaced to the UI (cleared on the next action). */
   error: string | null = $state(null);
+  /** Private catalog overlays (web build): local folders merged over the
+   *  active catalog. Empty on the native build (no such command). */
+  overlays: { path: string; agentCount: number }[] = $state([]);
 
   /** Load the persisted source + configured flag. Safe to call on mount. */
   async load(): Promise<void> {
@@ -54,6 +57,50 @@ class CatalogStore {
       this.configured = configured;
     } catch {
       // leave defaults (bundled / configured) so the app still runs
+    }
+    void this.loadOverlays();
+  }
+
+  /** Private catalog overlays (web build). Silently empty on native. */
+  async loadOverlays(): Promise<void> {
+    try {
+      this.overlays = await invoke<{ path: string; agentCount: number }[]>("web_overlays_list");
+    } catch {
+      this.overlays = [];
+    }
+  }
+
+  /** Add a local folder as a private overlay, then reload the merged corpus. */
+  async addOverlay(path: string): Promise<void> {
+    this.busy = true;
+    this.error = null;
+    try {
+      await invoke("web_overlays_add", { path });
+      await corpus.reload();
+      await this.loadOverlays();
+      await this.loadStatus();
+    } catch (e) {
+      this.error = errorText(e);
+      throw e;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** Remove a private overlay (the folder on disk is never touched). */
+  async removeOverlay(path: string): Promise<void> {
+    this.busy = true;
+    this.error = null;
+    try {
+      await invoke("web_overlays_remove", { path });
+      await corpus.reload();
+      await this.loadOverlays();
+      await this.loadStatus();
+    } catch (e) {
+      this.error = errorText(e);
+      throw e;
+    } finally {
+      this.busy = false;
     }
   }
 

@@ -462,9 +462,22 @@ class InstallStore {
     return invoke<number>("loadout_export", { path });
   }
 
+  /** Web build: the Agentfile manifest as a JSON string (browser download). */
+  async exportLoadoutWeb(): Promise<string> {
+    return invoke<string>("web_loadout_export");
+  }
+
   /** Restore an Agentfile from `path`; installs each entry. Returns records. */
   async importLoadout(path: string): Promise<InstallRecord[]> {
     const recs = await invoke<InstallRecord[]>("loadout_import", { path });
+    await this.reconcile();
+    void this.loadTools();
+    return recs;
+  }
+
+  /** Web build: restore from an uploaded Agentfile's JSON contents. */
+  async importLoadoutWeb(json: string): Promise<InstallRecord[]> {
+    const recs = await invoke<InstallRecord[]>("web_loadout_import", { json });
     await this.reconcile();
     void this.loadTools();
     return recs;

@@ -20,6 +20,7 @@
   import HealthDonut from "./HealthDonut.svelte";
   import CoverageDonuts from "./CoverageDonuts.svelte";
   import CatalogByDivision from "./CatalogByDivision.svelte";
+  import StationCard from "./StationCard.svelte";
   import InstallSunburst from "./InstallSunburst.svelte";
   import { i18n } from "$lib/stores/i18n.svelte";
   import type { InstalledAgent } from "$lib/types";
@@ -198,6 +199,8 @@
       </button>
     {/if}
   </div>
+
+  <StationCard />
 
   <div class="cols">
     <div class="card">

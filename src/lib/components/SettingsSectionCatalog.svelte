@@ -26,6 +26,7 @@
   import { github, type RepoStatsOutcome } from "$lib/stores/github.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { safeOpenUrl } from "$lib/util/url";
+  import { isWeb } from "$lib/util/platform";
   import { i18n } from "$lib/stores/i18n.svelte";
   import type { CatalogCandidate } from "$lib/types";
 
@@ -38,6 +39,32 @@
     void catalog.detect(false);
     void github.loadStatus();
   });
+
+  // ── Private catalogs (web build) ── local folders merged OVER the active
+  // catalog, read-only. The overlay folder itself is never modified.
+  async function addOverlayFolder() {
+    let picked: string | string[] | null = null;
+    try {
+      picked = await openDialog({
+        directory: true,
+        multiple: false,
+        title: i18n.optional("catalog.privatePickTitle", "Choose a private catalog folder"),
+      });
+    } catch {
+      /* picker unavailable */
+    }
+    if (typeof picked !== "string") return;
+    await run(
+      () => catalog.addOverlay(picked),
+      i18n.optional("catalog.privateAdded", "Private catalog merged in"),
+    );
+  }
+  async function removeOverlay(folderPath: string) {
+    await run(
+      () => catalog.removeOverlay(folderPath),
+      i18n.optional("catalog.privateRemoved", "Private catalog removed"),
+    );
+  }
 
   // Catalog repo homepage (for GitHub stats / links), derived from the remote.
   const repoSlug = $derived(catalog.status?.repoSlug ?? null);
@@ -226,6 +253,45 @@
     <button class="ghost" disabled={catalog.busy} onclick={pickFolder}>{i18n.t("catalog.chooseFolder")}</button>
   </div>
 
+  <!-- ── Private catalogs (web build): read-only overlays merged over the
+       active catalog. The local folders are never modified. ── -->
+  {#if isWeb}
+    <h3>{i18n.optional("catalog.privateTitle", "Private catalogs (merged in, never modified)")}</h3>
+    <p class="hint">
+      {i18n.optional(
+        "catalog.privateHint",
+        "Local folders whose agents appear alongside the public catalog — yours win name clashes. The folders are only read.",
+      )}
+    </p>
+    {#if catalog.overlays.length}
+      <ul class="cands">
+        {#each catalog.overlays as o (o.path)}
+          <li>
+            <div class="cand ov-row">
+              <FolderGit2 size={15} />
+              <div class="cand-main">
+                <span class="cand-path">{o.path}</span>
+                <span class="cand-meta">
+                  {i18n.count(o.agentCount, "common.agent.one", "common.agent.many")}
+                  {#if o.agentCount === 0}<span class="warn"> · {i18n.optional("catalog.privateEmpty", "no agents found")}</span>{/if}
+                </span>
+              </div>
+              <button class="ghost" disabled={catalog.busy} onclick={() => removeOverlay(o.path)}>
+                {i18n.optional("catalog.privateRemove", "Remove")}
+              </button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+    <div class="row-actions">
+      <button class="ghost" disabled={catalog.busy} onclick={addOverlayFolder}>
+        <FolderGit2 size={14} />
+        <span>{i18n.optional("catalog.privateAdd", "Add private catalog…")}</span>
+      </button>
+    </div>
+  {/if}
+
   {#if catalog.error}<p class="err">{catalog.error}</p>{/if}
 </div>
 
@@ -279,6 +345,9 @@
   .ct .t { font-weight: var(--fw-medium); color: var(--color-text-primary); }
   .ct .d { font-size: var(--text-caption); color: var(--color-text-muted); line-height: var(--lh-normal); }
   .cands { display: flex; flex-direction: column; gap: 4px; }
+  /* Overlay rows are containers, not click targets (Remove is the action). */
+  .cand.ov-row { cursor: default; }
+  .cand.ov-row:hover { border-color: var(--color-border); color: inherit; }
   .cand {
     width: 100%; display: flex; align-items: center; gap: var(--space-2);
     padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border);

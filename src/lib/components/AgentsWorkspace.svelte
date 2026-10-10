@@ -448,6 +448,9 @@
                   <span class="row-name truncate">{a.name}</span>
                   {#if a.vibe}<span class="row-vibe truncate">{a.vibe}</span>{/if}
                 </span>
+                {#if a.source === "private"}
+                  <span class="row-private" title={i18n.optional("catalog.privateAgentTitle", "From your private catalog")}>private</span>
+                {/if}
                 {#if rows.length > 0}
                   <span class="row-dots" aria-hidden="true">
                     {#each rows as r (r.dest)}
@@ -689,6 +692,7 @@
   .row-name { font-size: var(--text-body-sm); font-weight: var(--fw-medium); color: var(--color-text-primary); }
   .row-vibe { font-size: var(--text-caption); color: var(--color-text-muted); }
   .row-dots { display: inline-flex; align-items: center; gap: 3px; flex: none; }
+  .row-private { flex: none; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 5px; border-radius: 999px; border: 1px solid var(--color-border); color: var(--color-text-muted); }
   .row-dots .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--color-text-muted); }
   .dot[data-tone="ok"]     { background: var(--color-success); }
   .dot[data-tone="warn"]   { background: var(--color-warning); }
@@ -737,5 +741,29 @@
       display: block; position: fixed; inset: 36px 0 0 0; z-index: 40;
       background: rgba(0,0,0,0.28); border: 0; cursor: default;
     }
+  }
+
+  /* ── Phone shell (≤ 760px, the mobile top bar replaces the 36px titlebar):
+     the detail pane becomes a full-screen page with a back button, and the
+     filter/lens rows scroll horizontally instead of wrapping tall. ── */
+  @media (max-width: 760px) {
+    .detail-pane {
+      top: 52px;
+      width: 100vw !important;
+      border-left: none;
+    }
+    .ws.sel .ws-scrim { inset: 52px 0 0 0; }
+    .lp-head { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+    .lp-search-row { flex-wrap: nowrap; }
+    .cat-btn { max-width: 132px; }
+    .lp-search-row :global(.wrap) { min-width: 110px; }
+    .seg { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+    .seg-btn { flex: none; }
+    .lp-list { padding: var(--space-2); }
+    .row-main { padding: var(--space-3) var(--space-2); }
+    .row-emoji { font-size: 22px; }
+    .dov { margin: var(--space-1) 0 var(--space-3); }
+    .dov-head { flex-wrap: wrap; }
+    .bulk-bar { flex-wrap: wrap; }
   }
 </style>

@@ -179,6 +179,24 @@ class UiStore {
       resized sidebar survives app launches. */
   sidebarWidth: number = $state(SIDEBAR_DEFAULT_WIDTH);
 
+  /** True on phone-width viewports (≤ 760px CSS px). Drives the mobile
+      shell (top bar + bottom tab bar) and stacked master/detail panes.
+      Live via matchMedia so rotating a phone/tablet updates instantly. */
+  isNarrow: boolean = $state(false);
+
+  /** Watch the viewport width and keep `isNarrow` current. Called once from
+      the root layout's onMount; returns a cleanup for tests. */
+  initResponsive(): () => void {
+    if (typeof window === "undefined" || !window.matchMedia) return () => {};
+    const mq = window.matchMedia("(max-width: 760px)");
+    const apply = () => {
+      this.isNarrow = mq.matches;
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }
+
   setSection(s: SidebarSection) {
     this.section = s;
     // Navigating to ANY section closes the package detail slide-over and resets

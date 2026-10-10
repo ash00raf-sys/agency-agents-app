@@ -1,0 +1,4 @@
+// Root — plugins only; no dependencies to resolve beyond AGP itself.
+plugins {
+    id "com.android.application" version "8.5.2" apply false
+}

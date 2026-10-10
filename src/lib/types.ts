@@ -348,6 +348,12 @@ export interface Agent {
   vibe: string | null;
   /** Markdown body (persona) — empty in list views. */
   body: string;
+  /** Web build only: `"private"` when this agent comes from a private
+      catalog overlay (the user's own local repo merged over the catalog).
+      Absent for catalog agents. */
+  source?: "private";
+  /** Set on private agents parsed from DevForge station skills (web build). */
+  originFormat?: "station";
 }
 
 /**
@@ -585,6 +591,7 @@ export type SidebarSection =
   | "tools"
   | "teams"
   | "projects"
+  | "chat"
   | "runbooks"
   | "activity";
 

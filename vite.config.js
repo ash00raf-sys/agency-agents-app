@@ -31,5 +31,13 @@ export default defineConfig(async () => ({
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
+    // Web build (`node web/server.mjs`): proxy the invoke bridge so
+    // `npm run dev` works against the same backend as production.
+    proxy: {
+      "/api": {
+        target: "http://localhost:8788",
+        changeOrigin: false,
+      },
+    },
   },
 }));

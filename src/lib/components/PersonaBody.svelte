@@ -12,8 +12,12 @@
   import type { Snippet } from "svelte";
   import Pill from "./Pill.svelte";
   import LoadingState from "./LoadingState.svelte";
+  import MessageSquare from "@lucide/svelte/icons/message-square";
   import { corpus } from "$lib/stores/corpus.svelte";
   import { i18n } from "$lib/stores/i18n.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { chat } from "$lib/stores/chat.svelte";
+  import { isWeb } from "$lib/util/platform";
   import { resolveCategoryIcon } from "$lib/util/categoryIcon";
   import { renderMarkdown } from "$lib/util/markdown";
   import type { Agent } from "$lib/types";
@@ -58,6 +62,22 @@
           <Pill tone="brand">
             <span class="pb-cat-ic" style="color:{corpus.colorOf(agent.category)}"><DivIcon size={12} /></span>{corpus.labelOf(agent.category)}
           </Pill>
+        {/if}
+        {#if agent.source === "private"}
+          <span class="pb-private" title={i18n.optional("catalog.privateAgentTitle", "From your private catalog")}>private</span>
+        {/if}
+        {#if isWeb}
+          <button
+            class="pb-chat"
+            onclick={() => {
+              chat.open(agent.slug, agent.name);
+              ui.setSection("chat");
+            }}
+            title={i18n.optional("chat.openWith", "Chat with this agent")}
+          >
+            <MessageSquare size={12} />
+            {i18n.optional("chat.action", "Chat")}
+          </button>
         {/if}
       </span>
     </div>
@@ -108,7 +128,12 @@
     font-weight: var(--fw-semibold);
     color: var(--color-text-primary);
   }
-  .pb-cat { display: inline-flex; }
+  .pb-cat { display: inline-flex; align-items: center; gap: 6px; }
+  /* "private" chip next to the division pill for overlay-sourced agents. */
+  .pb-private { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--color-border); color: var(--color-text-muted); }
+  /* Chat entry point (web build) — quiet chip beside the identity row. */
+  .pb-chat { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+  .pb-chat:hover { border-color: var(--color-primary, #4f46e5); color: var(--color-primary, #4f46e5); }
   /* Division icon tinted with its brand color, as the pill's leading glyph. */
   .pb-cat-ic { display: inline-flex; align-items: center; margin-right: 4px; }
   .pb-cat-btn { background: transparent; border: 0; padding: 0; cursor: pointer; display: inline-flex; border-radius: var(--radius-full); }

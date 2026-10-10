@@ -3,8 +3,153 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1e1e28" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Agency Agents" />
     <title>Agency Agents</title>
+    <script>
+      /**
+       * ── Agency Agents web bridge ─────────────────────────────────────────
+       * When the app runs inside the Tauri WebView, the host injects
+       * `window.__TAURI_INTERNALS__` before any page script. When the app is
+       * served by the web server (`node web/server.mjs`) it isn't there — so
+       * this blocking script installs a fetch-backed implementation BEFORE
+       * the app bundle loads, and every `invoke()` / `listen()` /
+       * plugin-dialog call in the app works unchanged against the HTTP
+       * bridge (`POST /api/invoke`).
+       *
+       * Plugin commands are handled locally where a browser equivalent
+       * exists (open URL → window.open, folder pick → the in-app browser
+       * mounted by `src/lib/web/webBridge.ts`), and no-op'd where the
+       * native surface doesn't apply (window controls, event bus).
+       */
+      (function () {
+        if (window.__TAURI_INTERNALS__) return; // native Tauri — nothing to do
+        window.__AGENCY_WEB__ = true;
+
+        // PWA: register the service worker (localhost is a secure context,
+        // so the app is installable to the Android home screen). Network-
+        // first — updates land on the next load; the SW only provides an
+        // offline shell.
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("load", function () {
+            navigator.serviceWorker.register("/sw.js").catch(function () {
+              /* offline shell unavailable — the app still works online */
+            });
+          });
+        }
+
+        var nextCallbackId = 1;
+        var callbacks = new Map();
+        var nextEventId = 1;
+
+        function httpInvoke(cmd, args) {
+          return fetch("/api/invoke", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ cmd: cmd, args: args || {} }),
+          }).then(function (res) {
+            return res.text().then(function (text) {
+              var body = null;
+              try {
+                body = text ? JSON.parse(text) : null;
+              } catch (e) {
+                body = null;
+              }
+              if (!res.ok) {
+                // Reject with the AppError payload — matches how Tauri
+                // commands reject, so isAppError()/errorText() work.
+                throw body || { code: "internal", message: "HTTP " + res.status };
+              }
+              return body;
+            });
+          });
+        }
+
+        window.__TAURI_INTERNALS__ = {
+          transformCallback: function (cb) {
+            var id = nextCallbackId++;
+            callbacks.set(id, cb);
+            return id;
+          },
+          unregisterCallback: function (id) {
+            callbacks.delete(id);
+          },
+          invoke: function (cmd, args, _options) {
+            try {
+              // ── event bus: nothing to listen to in the web build ──
+              if (cmd === "plugin:event|listen") return Promise.resolve(nextEventId++);
+              if (cmd === "plugin:event|unlisten") return Promise.resolve();
+              if (cmd === "plugin:event|emit" || cmd === "plugin:event|emit_to") {
+                return Promise.resolve();
+              }
+              // ── dialogs: delegated to the in-app picker (webBridge.ts) ──
+              if (cmd === "plugin:dialog|open") {
+                var open = window.__AGENCY_WEB_DIALOG__ && window.__AGENCY_WEB_DIALOG__.open;
+                return open
+                  ? Promise.resolve(open(args && args.options))
+                  : Promise.reject({ code: "internal", message: "web dialogs not ready" });
+              }
+              if (cmd === "plugin:dialog|save") {
+                var save = window.__AGENCY_WEB_DIALOG__ && window.__AGENCY_WEB_DIALOG__.save;
+                return save
+                  ? Promise.resolve(save(args && args.options))
+                  : Promise.reject({ code: "internal", message: "web dialogs not ready" });
+              }
+              if (cmd === "plugin:dialog|message") {
+                window.alert(args && args.options && args.options.message);
+                return Promise.resolve();
+              }
+              if (cmd === "plugin:dialog|ask" || cmd === "plugin:dialog|confirm") {
+                return Promise.resolve(
+                  window.confirm(args && args.options && args.options.message)
+                );
+              }
+              // ── opener: open URLs in a new browser tab ──
+              if (cmd === "plugin:opener|open_url") {
+                var url = args && args.url;
+                if (typeof url === "string" && /^https?:/i.test(url)) {
+                  window.open(url, "_blank", "noopener,noreferrer");
+                }
+                return Promise.resolve();
+              }
+              if (cmd === "plugin:opener|open_path" || cmd === "plugin:opener|reveal_item_in_dir") {
+                return httpInvoke("reveal_path", { path: args && (args.path || (args.paths && args.paths[0])) });
+              }
+              // ── window/webview controls: browser chrome owns these ──
+              if (/^plugin:(window|webview)\|/.test(cmd)) {
+                if (/is_|scale_factor|inner_position|outer_position|inner_size|outer_size|theme/.test(cmd)) {
+                  var defaults = {
+                    "plugin:window|is_maximized": false,
+                    "plugin:window|is_minimized": false,
+                    "plugin:window|is_fullscreen": false,
+                    "plugin:window|is_decorated": true,
+                    "plugin:window|is_resizable": true,
+                    "plugin:window|is_visible": true,
+                    "plugin:window|scale_factor": 1,
+                    "plugin:window|theme": window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+                  };
+                  return Promise.resolve(defaults[cmd] !== undefined ? defaults[cmd] : null);
+                }
+                return Promise.resolve(null);
+              }
+              // ── everything else: the HTTP command bridge ──
+              return httpInvoke(cmd, args);
+            } catch (e) {
+              return Promise.reject(e);
+            }
+          },
+          metadata: {
+            currentWindow: { label: "main" },
+            currentWebview: { label: "main" },
+            windows: ["main"],
+          },
+        };
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
