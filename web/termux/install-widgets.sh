@@ -20,18 +20,19 @@ SHORTCUTS="$HOME/.shortcuts"
 mkdir -p "$SHORTCUTS"
 
 # Remove stale Agency Agents shortcuts from previous installs (any name,
-# any port) BEFORE writing the fresh ones. Only ours: the name says
-# "Agency Agents", or the script points into this app's directory.
-# DevForge's own widgets never match and are left alone.
+# any port) BEFORE writing the fresh ones. Only ours: the name contains
+# "Agency Agents"/"agency-agents", or the script points into one of our
+# clone paths (agency-agents-app / agency-agents-js). DevForge's and
+# FullTrader's widgets never match and are left alone.
 clean_stale() { # clean_stale <dir>
   [ -d "$1" ] || return 0
   for f in "$1"/*; do
     [ -e "$f" ] || continue
     base="$(basename "$f")"
     case "$base" in
-      "Agency Agents"*|"agency-agents"*) rm -f -- "$f" ;;
+      *"Agency Agents"*|*"agency-agents"*|*"agency agents"*) rm -f -- "$f" ;;
       *)
-        if grep -q "agency-agents-app" "$f" 2>/dev/null; then
+        if grep -qE "agency-agents-(app|js)" "$f" 2>/dev/null; then
           rm -f -- "$f"
         fi
         ;;
