@@ -9,10 +9,10 @@
  *
  * Usage:
  *   npm run build         # one-time (or after pulling changes)
- *   node web/server.mjs   # → http://localhost:8787
+ *   node web/server.mjs   # → http://localhost:8788
  *
  * Options (env or flags):
- *   PORT=8787   / --port 8787    listen port
+ *   PORT=8788   / --port 8788    listen port
  *   HOST=0.0.0.0 / --host 0.0.0.0 listen host (0.0.0.0 = reachable on LAN)
  *   AGENCY_DATA_DIR=/path       override the app data dir
  *
@@ -21,7 +21,7 @@
  *   git clone https://github.com/msitarzewski/agency-agents-app && cd agency-agents-app
  *   npm install && npm run build
  *   node web/server.mjs
- *   → open http://localhost:8787 in your phone's browser
+ *   → open http://localhost:8788 in your phone's browser
  */
 
 import fs from "node:fs";
@@ -54,11 +54,11 @@ function parseArgs(argv) {
 
 const args = parseArgs(process.argv);
 if (args.help) {
-  console.log("usage: node web/server.mjs [--port 8787] [--host 0.0.0.0]");
+  console.log("usage: node web/server.mjs [--port 8788] [--host 0.0.0.0]");
   process.exit(0);
 }
 
-const PORT = parseInt(String(args.port ?? process.env.PORT ?? "8787"), 10);
+const PORT = parseInt(String(args.port ?? process.env.PORT ?? "8788"), 10);
 const HOST = String(args.host ?? process.env.HOST ?? "0.0.0.0");
 const ADIR = process.env.AGENCY_DATA_DIR
   ? path.resolve(process.env.AGENCY_DATA_DIR)
@@ -275,6 +275,20 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ code: "internal", message: "unhandled server error" }));
     }
   }
+});
+
+server.on("error", (e) => {
+  if (e?.code === "EADDRINUSE") {
+    console.error("");
+    console.error(`  Port ${PORT} is already in use — either another copy of this server`);
+    console.error("  is running, or another app claimed the port. Options:");
+    console.error(`    1. Stop the old one:   pkill -f "server.mjs"`);
+    console.error(`    2. Pick a free port:   node web/server.mjs --port 8789`);
+    console.error("  Then open the matching http://localhost:<port> URL.");
+    process.exit(1);
+  }
+  console.error("[server] fatal:", e);
+  process.exit(1);
 });
 
 server.listen(PORT, HOST, () => {

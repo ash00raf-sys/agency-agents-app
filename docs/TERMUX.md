@@ -32,7 +32,7 @@ rebuild after `git pull`).
 node web/server.mjs
 ```
 
-Then open **http://localhost:8787** in your phone's browser. Add it to your
+Then open **http://localhost:8788** in your phone's browser. Add it to your
 home screen ("Add to Home screen" in the browser menu) and it runs
 full-screen like an app.
 
@@ -139,7 +139,7 @@ overrides the API base (proxies/tests).
 
 Two ways to open the app like a native app (both optional):
 
-**PWA (app icon):** open `http://localhost:8787` in Chrome → menu ⋮ →
+**PWA (app icon):** open `http://localhost:8788` in Chrome → menu ⋮ →
 **Add to Home screen** (or "Install app"). The app launches full-screen
 from its own icon, with an offline shell (the server still needs to be
 running for live data — see the widget below).
@@ -178,7 +178,7 @@ one-tap buttons.
 - **GitHub sign-in and in-app updates** are native-app features; the web
   build updates via `git pull && npm install && npm run build`.
 - The server listens on `0.0.0.0`, so from another device on the same
-  Wi-Fi you can open `http://<phone-ip>:8787` too.
+  Wi-Fi you can open `http://<phone-ip>:8788` too.
 - Data dir override for testing: `AGENCY_DATA_DIR=/path node web/server.mjs`.
 
 ## Development
@@ -187,7 +187,7 @@ one-tap buttons.
 # terminal 1 — the backend
 node web/server.mjs
 
-# terminal 2 — vite dev server with /api proxied to :8787
+# terminal 2 — vite dev server with /api proxied to :8788
 npm run dev
 ```
 

@@ -35,7 +35,7 @@ export default defineConfig(async () => ({
     // `npm run dev` works against the same backend as production.
     proxy: {
       "/api": {
-        target: "http://localhost:8787",
+        target: "http://localhost:8788",
         changeOrigin: false,
       },
     },

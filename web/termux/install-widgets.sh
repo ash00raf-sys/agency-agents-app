@@ -35,5 +35,5 @@ echo "  1. Install Termux:Widget from F-Droid (DevForge users already have it)."
 echo "  2. Home screen → Widgets → Termux:Widget → add it."
 echo "  3. Tap \"Agency Agents\" — server starts, then the app opens."
 echo
-echo "For the app-like launcher instead: open http://localhost:8787 in Chrome"
+echo "For the app-like launcher instead: open http://localhost:8788 in Chrome"
 echo "→ menu ⋮ → \"Add to Home screen\" / \"Install app\" (it's a PWA)."

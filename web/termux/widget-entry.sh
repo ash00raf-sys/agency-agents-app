@@ -8,7 +8,7 @@
 #
 set -u
 APP_DIR="__APP_DIR__"
-PORT="${AGENCY_PORT:-8787}"
+PORT="${AGENCY_PORT:-8788}"
 URL="http://localhost:$PORT"
 
 have_curl() { command -v curl >/dev/null 2>&1; }

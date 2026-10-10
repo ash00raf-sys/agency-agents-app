@@ -1,7 +1,7 @@
 # Agency Agents — Android launcher (sample project)
 
 A real, buildable Android app: a native shell around the Agency Agents
-web app served by Termux at `http://localhost:8787`. One Activity, one
+web app served by Termux at `http://localhost:8788`. One Activity, one
 WebView, **zero external dependencies** (no Kotlin, no AndroidX) — the
 build needs only the Android SDK + Android Gradle Plugin.
 

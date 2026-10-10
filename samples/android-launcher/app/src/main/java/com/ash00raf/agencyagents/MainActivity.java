@@ -15,14 +15,14 @@ import android.webkit.WebViewClient;
 
 /**
  * Agency Agents launcher — a native shell around the local web app
- * (Termux serves it at http://localhost:8787). One file, zero external
+ * (Termux serves it at http://localhost:8788). One file, zero external
  * dependencies, deliberately boring: JS + localStorage on (chat history
  * survives), navigations kept in-app, a plain offline page with Retry
  * when the Termux server isn't up, and back-button page history.
  */
 public class MainActivity extends Activity {
 
-    private static final String APP_URL = "http://localhost:8787/";
+    private static final String APP_URL = "http://localhost:8788/";
     private WebView web;
 
     @SuppressLint("SetJavaScriptEnabled")

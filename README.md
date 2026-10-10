@@ -112,7 +112,7 @@ pairs perfectly with Claude Code / Codex / Gemini CLI running in Termux.
 ```sh
 npm install
 npm run build
-node web/server.mjs        # → http://localhost:8787
+node web/server.mjs        # → http://localhost:8788
 ```
 
 Full walkthrough: **[docs/TERMUX.md](./docs/TERMUX.md)**.
