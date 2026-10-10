@@ -21,8 +21,14 @@ else
   # Hold a Termux wake lock so Android doesn't reap the background server
   # once the widget script finishes (nohup alone does not protect it).
   command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock
-  # Detached start — the widget tap returns immediately, logs go to a file.
-  (cd "$APP_DIR" && nohup node web/server.mjs --port "$PORT" > "$APP_DIR/web/server.log" 2>&1 &)
+  # Detached start — logs go to a file. `setsid` is the important part:
+  # when the widget script exits, Termux tears down its process GROUP;
+  # a new session survives it. (util-linux provides setsid.)
+  if command -v setsid >/dev/null 2>&1; then
+    (cd "$APP_DIR" && setsid nohup node web/server.mjs --port "$PORT" > "$APP_DIR/web/server.log" 2>&1 &)
+  else
+    (cd "$APP_DIR" && nohup node web/server.mjs --port "$PORT" > "$APP_DIR/web/server.log" 2>&1 &)
+  fi
   if have_curl; then
     # Cold start on a phone takes a few seconds; wait before opening.
     i=0
