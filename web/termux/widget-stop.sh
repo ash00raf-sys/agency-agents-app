@@ -6,6 +6,8 @@
 set -u
 if pkill -f "web/server\.mjs"; then
   echo "Agency Agents server stopped."
+  # Release the wake lock we took on start (only if nothing else needs it).
+  command -v termux-wake-unlock >/dev/null 2>&1 && termux-wake-unlock || true
 else
   echo "Server not running."
 fi

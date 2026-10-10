@@ -18,6 +18,9 @@ healthy() { curl -sf --max-time 2 "$URL/api/health" >/dev/null 2>&1; }
 if have_curl && healthy; then
   :
 else
+  # Hold a Termux wake lock so Android doesn't reap the background server
+  # once the widget script finishes (nohup alone does not protect it).
+  command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock
   # Detached start — the widget tap returns immediately, logs go to a file.
   (cd "$APP_DIR" && nohup node web/server.mjs --port "$PORT" > "$APP_DIR/web/server.log" 2>&1 &)
   if have_curl; then
