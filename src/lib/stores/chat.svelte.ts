@@ -23,6 +23,11 @@ export interface Conversation {
   model: string | null;
   messages: ChatMessage[];
   updatedAt: string;
+  /** Attached project workspace (path) — chat gets its file tree + files. */
+  projectPath?: string;
+  projectLabel?: string;
+  /** Extra files (rel paths) attached to the conversation context. */
+  attachedFiles?: string[];
 }
 
 interface ChatKeyStatus {
@@ -139,6 +144,25 @@ class ChatStore {
   close(slug: string): void {
     this.conversations = this.conversations.filter((c) => c.slug !== slug);
     if (this.activeSlug === slug) this.activeSlug = null;
+    saveConversations(this.conversations);
+  }
+
+  /** Attach/detach a project workspace to a conversation (persists). */
+  attachProject(slug: string, path: string | null, label: string | null): void {
+    const conv = this.conversations.find((c) => c.slug === slug);
+    if (!conv) return;
+    conv.projectPath = path ?? undefined;
+    conv.projectLabel = label ?? undefined;
+    conv.updatedAt = new Date().toISOString();
+    saveConversations(this.conversations);
+  }
+
+  /** Set the extra attached files for a conversation's context (persists). */
+  setAttachedFiles(slug: string, files: string[]): void {
+    const conv = this.conversations.find((c) => c.slug === slug);
+    if (!conv) return;
+    conv.attachedFiles = files;
+    conv.updatedAt = new Date().toISOString();
     saveConversations(this.conversations);
   }
 

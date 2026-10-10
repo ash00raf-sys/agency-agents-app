@@ -62,6 +62,12 @@ import {
   runBuild,
 } from "./preview.mjs";
 import {
+  workspaceDiff,
+  workspaceRead,
+  workspaceTree,
+  workspaceWrite,
+} from "./workspace.mjs";
+import {
   saveStationUrl,
   stationAnalytics,
   stationEvents,
@@ -264,6 +270,16 @@ export async function dispatch(adir, cmd, args) {
       return runBuild(adir, a.path);
     case "preview_history":
       return buildsHistory(adir, typeof a.limit === "number" ? a.limit : 100);
+
+    // ---- Workspace file access for agent chat (inspect & alter) ----
+    case "workspace_tree":
+      return workspaceTree(a.path);
+    case "workspace_read":
+      return workspaceRead(a.path, a.file);
+    case "workspace_write":
+      return workspaceWrite(adir, a.path, a.file, a.content);
+    case "workspace_diff":
+      return workspaceDiff(a.path, a.file, a.content);
 
     // ---- Private catalog overlays (web build) ----
     case "web_overlays_list":
