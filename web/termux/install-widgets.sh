@@ -19,6 +19,28 @@ SHORTCUTS="$HOME/.shortcuts"
 
 mkdir -p "$SHORTCUTS"
 
+# Remove stale Agency Agents shortcuts from previous installs (any name,
+# any port) BEFORE writing the fresh ones. Only ours: the name says
+# "Agency Agents", or the script points into this app's directory.
+# DevForge's own widgets never match and are left alone.
+clean_stale() { # clean_stale <dir>
+  [ -d "$1" ] || return 0
+  for f in "$1"/*; do
+    [ -e "$f" ] || continue
+    base="$(basename "$f")"
+    case "$base" in
+      "Agency Agents"*|"agency-agents"*) rm -f -- "$f" ;;
+      *)
+        if grep -q "agency-agents-app" "$f" 2>/dev/null; then
+          rm -f -- "$f"
+        fi
+        ;;
+    esac
+  done
+}
+clean_stale "$SHORTCUTS"
+clean_stale "$SHORTCUTS/tiles" 2>/dev/null || true
+
 mk() { # mk <template> <name>
   sed "s|__APP_DIR__|$APP_DIR|g" "$HERE/$1" > "$SHORTCUTS/$2"
   chmod +x "$SHORTCUTS/$2"
@@ -29,6 +51,9 @@ mk widget-stop.sh "Agency Agents stop"
 
 echo "Installed:"
 ls -1 "$SHORTCUTS" | sed 's/^/  ~\/.shortcuts\//'
+echo
+echo "If the home-screen widget still shows old buttons: long-press it →"
+echo "Remove, then add the Termux:Widget again — it lists ~/.shortcuts live."
 echo
 echo "Next (one time, if not already done):"
 echo "  1. Install Termux:Widget from F-Droid (DevForge users already have it)."
